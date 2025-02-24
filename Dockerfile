@@ -1,6 +1,6 @@
 # Dockerfile
 # Build stage
-FROM rust:1.77-alpine3.19 as builder
+FROM rust:1.85-alpine3.20 as builder
 
 # Install musl build dependencies
 RUN apk add --no-cache \
@@ -24,7 +24,7 @@ COPY gateway-config.toml .
 RUN cargo build --release
 
 # Runtime stage
-FROM alpine:3.19
+FROM alpine:3.20
 
 # Install runtime dependencies
 RUN apk add --no-cache \
