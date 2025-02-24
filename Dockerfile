@@ -18,7 +18,6 @@ RUN cargo build --release
 
 # Copy real source code
 COPY src ./src
-COPY .env .
 COPY gateway-config.toml .
 
 # Build final binary
@@ -37,7 +36,6 @@ WORKDIR /app
 # Copy built binary and configs
 COPY --from=builder \
     /app/target/release/gateway \
-    /app/.env \
     /app/gateway-config.toml \
     ./
 
