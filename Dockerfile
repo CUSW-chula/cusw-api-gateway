@@ -1,0 +1,50 @@
+# Dockerfile
+# Build stage
+FROM rust:1.77-alpine3.19 as builder
+
+# Install musl build dependencies
+RUN apk add --no-cache \
+    musl-dev \
+    openssl-dev \
+    postgresql-dev \
+    build-base
+
+WORKDIR /app
+
+# Create dummy project to cache dependencies
+RUN cargo init --bin
+COPY Cargo.toml Cargo.lock ./
+RUN cargo build --release
+
+# Copy real source code
+COPY src ./src
+COPY .env .
+COPY gateway-config.toml .
+
+# Build final binary
+RUN cargo build --release
+
+# Runtime stage
+FROM alpine:3.19
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    ca-certificates \
+    libgcc
+
+WORKDIR /app
+
+# Copy built binary and configs
+COPY --from=builder \
+    /app/target/release/gateway \
+    /app/.env \
+    /app/gateway-config.toml \
+    ./
+
+# Run as non-root user
+RUN adduser -D gateway
+USER gateway
+
+EXPOSE 5000
+
+ENTRYPOINT ["./gateway"]
