@@ -41,7 +41,7 @@ COPY --from=builder \
     /app/config/tag.toml \
     /app/config/tasks.toml \
     /app/config/users.toml \
-    /app/config/comment.toml \
+    /app/config/comments.toml \
     /app/config/etc.toml \
     ./
 
