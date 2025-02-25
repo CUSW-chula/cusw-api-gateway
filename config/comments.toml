@@ -7,19 +7,19 @@ method = "GET"
 allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee", "admin"]
 param = "id"
 
-[[permissions]] #UNTESTED
+[[permissions]] #TESTED
 path = "/api/v2/comments/:id"
 method = "DELETE"
-allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee", "admin"]
+allowed_roles = ["*"]
 param = "id"
 
-[[permissions]] #UNTESTED
+[[permissions]] #TESTED
 path = "/api/v2/comments/:id"
 method = "PATCH"
-allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee", "admin"]
+allowed_roles = ["*"]
 param = "id"
 
-[[permissions]] #UNTESTED
+[[permissions]] #NOT PASSED, should have param taskId
 path = "/api/v2/comments"
 method = "POST"
-allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee", "admin"]
+allowed_roles = ["*"]

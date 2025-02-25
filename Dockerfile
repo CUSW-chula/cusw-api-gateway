@@ -18,7 +18,7 @@ RUN cargo build --release
 
 # Copy real source code
 COPY src ./src
-COPY gateway-config.toml .
+COPY config ./config
 
 # Build final binary
 RUN cargo build --release
@@ -36,7 +36,8 @@ WORKDIR /app
 # Copy built binary and configs
 COPY --from=builder \
     /app/target/release/api-gateway \
-    /app/gateway-config.toml \
+    /app/config/users.toml \
+    /app/config/projects.toml \
     ./
 
 # Run as non-root user
