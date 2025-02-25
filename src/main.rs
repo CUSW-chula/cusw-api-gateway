@@ -138,8 +138,8 @@ async fn main() {
         .layer(Extension(shared_router))
         .layer(Extension(app_state));
 
-    println!("🚀 Gateway started on http://localhost:5000");
-    axum::Server::bind(&"0.0.0.0:5000".parse().unwrap())
+    println!("🚀 Gateway started on http://localhost:8108");
+    axum::Server::bind(&"0.0.0.0:8108".parse().unwrap())
         .serve(app.into_make_service())
         .await
         .unwrap();
