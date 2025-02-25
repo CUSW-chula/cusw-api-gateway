@@ -1,4 +1,4 @@
-backend_url = "https://cusw-workspace.sa.chula.ac.th"
+backend_url = "http://prod-app:4000"
 #[ProjectOwner,Member,TaskCreator,TaskAssignee,admin]
 
 [projects]
