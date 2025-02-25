@@ -20,7 +20,6 @@ futures = "0.3"
 anyhow = "1.0"
 thiserror = "1.0"
 serde_urlencoded = "0.7"
-regex = "1.9.6"
 
 
 [build-dependencies]

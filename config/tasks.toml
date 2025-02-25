@@ -6,29 +6,28 @@ path = "/api/v2/tasks"
 method = "GET"
 allowed_roles = ["admin"]
 
-[[permissions]] #TESTED pjowner, member, admin, outsider
-path = "/api/v2/tasks/:projectId"
+[[permissions]] #TESTED pjowner, member, outsider
+path = "/api/v2/tasks/:id"
 method = "POST"
 allowed_roles = ["ProjectOwner", "Member"]
-param = "projectId"
+param = "id"
 
-# [[permissions]] #UNTESTED
-# path = "/api/v2/tasks/:id"
-# method = "GET"
-# allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
-# param = "id"
+[[permissions]] #TESTED pjowner, member, outsider
+path = "/api/v2/tasks/:id"
+method = "GET"
+allowed_roles = ["*"]
 
-# [[permissions]] #UNTESTED
-# path = "/api/v2/tasks/:id"
-# method = "DELETE"
-# allowed_roles = ["ProjectOwner", "TaskCreator"]
-# param = "id"
+[[permissions]] #TESTED pjowner, member, outsider
+path = "/api/v2/tasks/:id"
+method = "DELETE"
+allowed_roles = ["ProjectOwner", "TaskCreator"]
+param = "id"
 
-# [[permissions]] #UNTESTED
-# path = "/api/v2/tasks/:id"
-# method = "PATCH"
-# allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
-# param = "id"
+[[permissions]] #TESTED pjowner, member, outsider
+path = "/api/v2/tasks/:id"
+method = "PATCH"
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+param = "id"
 
 [[permissions]] #IS IT USED?
 path = "/api/v2/tasks/project/:projectid"

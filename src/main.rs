@@ -133,7 +133,7 @@ async fn main() {
 
     for entry in &permissions {
         let method = entry.method.parse::<Method>().unwrap();
-        let path = entry.path.clone();
+        let path = entry.path.clone(); // Keep original path format "/api/v2/tasks/:id"
 
         let path_perms = permissions_map
             .entry(path.clone())
@@ -240,9 +240,8 @@ async fn proxy_handler(
     })?;
 
     // Extract project/task ID from query instead of path
-    let id = param
-        .as_ref()
-        .and_then(|param| matched.params.get(param));
+    let param_name = param.as_ref().map(|p| p.as_str()).unwrap_or_default();
+    let id = matched.params.get(param_name); // Use param_name instead of param
 
     // Role checking
     let user_roles = fetch_user_roles(&app_state.db_pool, &user_id, id)
