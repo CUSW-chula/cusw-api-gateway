@@ -12,11 +12,11 @@ method = "POST"
 allowed_roles = ["ProjectOwner", "Member"]
 param = "projectId"
 
-[[permissions]] #UNTESTED
-path = "/api/v2/tasks/:id"
-method = "GET"
-allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
-param = "id"
+# [[permissions]] #UNTESTED
+# path = "/api/v2/tasks/:id"
+# method = "GET"
+# allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+# param = "id"
 
 # [[permissions]] #UNTESTED
 # path = "/api/v2/tasks/:id"
@@ -42,69 +42,69 @@ method = "GET"
 allowed_roles = ["*"]
 param = "parentid"
 
-[[permissions]] #UNTESTED
+[[permissions]] #TESTED pjowner, admin, outsider
 path = "/api/v2/tasks/template/:id"
 method = "POST"
 allowed_roles = ["ProjectOwner"]
 param = "id"
 
-[[permissions]] #UNTESTED
+[[permissions]] #TESTED pjowner, admin, outsider
 path = "/api/v2/tasks/assign/:taskId"
 method = "POST"
 allowed_roles = ["ProjectOwner", "TaskCreator"]
 param = "taskId"
 
-[[permissions]] #UNTESTED
+[[permissions]] #TESTED pjowner, admin, outsider
 path = "/api/v2/tasks/unassigned/:taskId"
 method = "DELETE"
 allowed_roles = ["ProjectOwner", "TaskCreator"]
 param = "taskId"
 
-[[permissions]] #UNTESTED
+[[permissions]] #TESTED pjowner, admin, outsider
 path = "/api/v2/tasks/status/:taskId"
 method = "PATCH"
 allowed_roles = ["ProjectOwner", "TaskCreator"]
 param = "taskId"
 
 
-[[permissions]] #UNTESTED
+[[permissions]] #TESTED pjowner, admin, outsider, taskassignee
 path = "/api/v2/tasks/emoji/:taskId"
 method = "POST"
 allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
 param = "taskId"
 
 
-[[permissions]] #UNTESTED
+[[permissions]] #TESTED pjowner, admin, outsider, taskassignee
 path = "/api/v2/tasks/emoji/:taskId"
 method = "PATCH"
 allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
 param = "taskId"
 
-[[permissions]] #UNTESTED
+[[permissions]] #TESTED pjowner, admin, outsider, taskassignee
 path = "/api/v2/tasks/emoji/:taskId"
 method = "GET"
 allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
 param = "taskId"
 
-[[permissions]] #UNTESTED
+[[permissions]] #TESTED pjowner, admin, outsider, taskassignee
 path = "/api/v2/tasks/parent-recursive/:taskId"
 method = "GET"
 allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
 param = "taskId"
 
-[[permissions]] #UNTESTED
+[[permissions]] #TESTED pjowner, admin, outsider, taskassignee
 path = "/api/v2/tasks/parent/:taskId"
 method = "GET"
 allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
 param = "taskId"
 
-[[permissions]] #UNTESTED
+[[permissions]] #TESTED pjowner, admin, outsider, taskassignee
 path = "/api/v2/tasks/money/:taskId"
 method = "POST"
 allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
 param = "taskId"
 
-[[permissions]] #UNTESTED
+[[permissions]] #TESTED pjowner, admin, outsider, taskassignee
 path = "/api/v2/tasks/money/:taskId"
 method = "DELETE"
 allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
