@@ -1,107 +1,117 @@
 backend_url = "http://localhost:4000"
 #[ProjectOwner,Member,TaskCreator,TaskAssignee,admin]
 
-[[permissions]]
+[[permissions]] #UNTESTED
 path = "/api/v2/tasks"
 method = "GET"
-allowed_roles = ["*"]
+allowed_roles = ["admin"]
 
-[[permissions]] 
-path = "/api/v2/tasks"
+[[permissions]] #TESTED pjowner, member, admin, outsider
+path = "/api/v2/tasks/:projectId"
 method = "POST"
-allowed_roles = ["*"]
+allowed_roles = ["ProjectOwner", "Member"]
+param = "projectId"
 
-[[permissions]]
-path = "/api/v2/tasks/:id"
-method = "GET"
-allowed_roles = ["TaskCreator", "ProjectOwner", "TaskAssignee"]
-param = "id"
+# [[permissions]] #UNTESTED
+# path = "/api/v2/tasks/:id"
+# method = "GET"
+# allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+# param = "id"
 
-[[permissions]] 
-path = "/api/v2/tasks/:id"
-method = "DELETE"
-allowed_roles = ["*"]
-param = "id"
+# [[permissions]] #UNTESTED
+# path = "/api/v2/tasks/:id"
+# method = "DELETE"
+# allowed_roles = ["ProjectOwner", "TaskCreator"]
+# param = "id"
 
-[[permissions]] 
-path = "/api/v2/tasks/:id"
-method = "PATCH"
-allowed_roles = ["*"]
-param = "id"
+# [[permissions]] #UNTESTED
+# path = "/api/v2/tasks/:id"
+# method = "PATCH"
+# allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+# param = "id"
 
-[[permissions]] 
+[[permissions]] #IS IT USED?
 path = "/api/v2/tasks/project/:projectid"
 method = "GET"
 allowed_roles = ["*"]
 param = "projectid"
 
-[[permissions]] 
+[[permissions]] #IS IT USED?
 path = "/api/v2/tasks/child/:parentid"
 method = "GET"
 allowed_roles = ["*"]
 param = "parentid"
 
-[[permissions]] 
+[[permissions]] #UNTESTED
 path = "/api/v2/tasks/template/:id"
 method = "POST"
-allowed_roles = ["*"]
+allowed_roles = ["ProjectOwner"]
 param = "id"
 
-[[permissions]] 
-path = "/api/v2/tasks/assign"
+[[permissions]] #UNTESTED
+path = "/api/v2/tasks/assign/:taskId"
 method = "POST"
-allowed_roles = ["*"]
+allowed_roles = ["ProjectOwner", "TaskCreator"]
+param = "taskId"
 
-[[permissions]] 
-path = "/api/v2/tasks/unassigned"
+[[permissions]] #UNTESTED
+path = "/api/v2/tasks/unassigned/:taskId"
 method = "DELETE"
-allowed_roles = ["*"]
+allowed_roles = ["ProjectOwner", "TaskCreator"]
+param = "taskId"
 
-[[permissions]] 
-path = "/api/v2/tasks/status"
+[[permissions]] #UNTESTED
+path = "/api/v2/tasks/status/:taskId"
 method = "PATCH"
-allowed_roles = ["*"]
+allowed_roles = ["ProjectOwner", "TaskCreator"]
+param = "taskId"
 
-[[permissions]] 
-path = "/api/v2/tasks/emoji"
+
+[[permissions]] #UNTESTED
+path = "/api/v2/tasks/emoji/:taskId"
 method = "POST"
-allowed_roles = ["*"]
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+param = "taskId"
 
-[[permissions]] 
-path = "/api/v2/tasks/emoji"
+
+[[permissions]] #UNTESTED
+path = "/api/v2/tasks/emoji/:taskId"
 method = "PATCH"
-allowed_roles = ["*"]
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+param = "taskId"
 
-#onChange
-#[[permissions]] 
-#path = "/api/v2/tasks/emoji/:taskId/:userId"
-#method = "GET"
-#allowed_roles = ["*"]
-#param = "taskId"
+[[permissions]] #UNTESTED
+path = "/api/v2/tasks/emoji/:taskId"
+method = "GET"
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+param = "taskId"
 
-[[permissions]] 
+[[permissions]] #UNTESTED
 path = "/api/v2/tasks/parent-recursive/:taskId"
 method = "GET"
-allowed_roles = ["*"]
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
 param = "taskId"
 
-[[permissions]] 
+[[permissions]] #UNTESTED
 path = "/api/v2/tasks/parent/:taskId"
 method = "GET"
-allowed_roles = ["*"]
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
 param = "taskId"
 
-[[permissions]] 
-path = "/api/v2/tasks/money"
+[[permissions]] #UNTESTED
+path = "/api/v2/tasks/money/:taskId"
 method = "POST"
-allowed_roles = ["*"]
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+param = "taskId"
 
-[[permissions]] 
-path = "/api/v2/tasks/money"
+[[permissions]] #UNTESTED
+path = "/api/v2/tasks/money/:taskId"
 method = "DELETE"
-allowed_roles = ["*"]
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+param = "taskId"
 
-[[permissions]] 
-path = "/api/v2/tasks/date"
+[[permissions]] #UNTESTED
+path = "/api/v2/tasks/date/:taskId"
 method = "PATCH"
-allowed_roles = ["*"]
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+param = "taskId"

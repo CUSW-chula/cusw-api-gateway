@@ -56,9 +56,10 @@ allowed_roles = ["*"]
 param = "tag_id"
 
 [[permissions]] #NOT PASSED, change to body instead of param
-path = "/api/v2/projects/owner"
+path = "/api/v2/projects/owner/:project_id"
 method = "PATCH"
 allowed_roles = ["ProjectOwner"]
+param = "project_id"
 
 [[permissions]] #NOT PASSED, admin can't assign ,pjonwer and pjmember passed
 path = "/api/v2/projects/assign/:project_id"
