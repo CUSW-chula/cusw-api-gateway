@@ -2,7 +2,7 @@
 FROM rust:1.85-slim-bookworm as builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    musl-dev libssl-dev libpq-dev build-essential \
+    musl-dev libssl-dev libpq-dev build-essential pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -30,7 +30,7 @@ RUN cargo build --release
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates libgcc-s1 \
+    ca-certificates libgcc-s1 libssl3 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
