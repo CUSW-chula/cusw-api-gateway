@@ -104,10 +104,9 @@ async fn main() {
                 methods: HashMap::new(),
             });
 
-        path_perms.methods.insert(
-            method,
-            (entry.allowed_roles_permission_entry, entry.param),
-        );
+        path_perms
+            .methods
+            .insert(method, (entry.allowed_roles_permission_entry, entry.param));
     }
 
     // Log all registered routes
@@ -179,19 +178,16 @@ async fn proxy_handler(
     println!("📦 Route Params: {:?}", matched.params);
 
     // Method validation
-    let (allowed_roles, param) =
-        matched.value.methods.get(&method).ok_or_else(|| {
-            println!("⚠️ Method not allowed: {}", method);
-            StatusCode::METHOD_NOT_ALLOWED
-        })?;
+    let (allowed_roles, param) = matched.value.methods.get(&method).ok_or_else(|| {
+        println!("⚠️ Method not allowed: {}", method);
+        StatusCode::METHOD_NOT_ALLOWED
+    })?;
 
     // Project ID extraction
-    let project_id = param
-        .as_ref()
-        .and_then(|param| matched.params.get(param));
+    let id = param.as_ref().and_then(|param| matched.params.get(param));
 
     // Role checking
-    let user_roles = fetch_user_roles(&app_state.db_pool, &user_id, project_id)
+    let user_roles = fetch_user_roles(&app_state.db_pool, &user_id, id)
         .await
         .map_err(|e| {
             println!("💥 Database error: {:?}", e);
@@ -211,7 +207,6 @@ async fn proxy_handler(
     } else {
         println!("👑 Admin override - granting access to all routes");
     }
-    
 
     // Proxy request
     let client = reqwest::Client::new();
@@ -256,7 +251,7 @@ fn decode_jwt(token: &str, secret: &str) -> Result<String, ()> {
 async fn fetch_user_roles(
     pool: &PgPool,
     user_id: &str,
-    project_id: Option<&str>,
+    id: Option<&str>,
 ) -> Result<Vec<String>, sqlx::Error> {
     let mut roles = Vec::new();
 
@@ -273,10 +268,36 @@ async fn fetch_user_roles(
         }
     }
 
+    // Find Task Creator
+    if let Some(task_id) = id {
+        let project_ids: Vec<(String, String)> =
+            sqlx::query_as(r#"SELECT "id", "projectId" FROM tasks WHERE "id" = $1"#)
+                .bind(task_id)
+                .fetch_all(pool)
+                .await?;
+
+        for project_id in project_ids {
+            println!("🔍 Fetching roles for project: {}", project_id.1);
+            let project_roles: Vec<ProjectRole> = sqlx::query_as(
+                r#"SELECT role FROM project_roles WHERE "userId" = $1 AND "projectId" = $2"#,
+            )
+            .bind(user_id)
+            .bind(project_id.1)
+            .fetch_all(pool)
+            .await?;
+
+            for role in project_roles {
+                println!("🏗️ Found project role: {}", role.role);
+                roles.push(role.role.to_string());
+            }
+        }
+    }
+
     // Check project roles
-    if let Some(project_id) = project_id {
+    if let Some(project_id) = id {
+        println!("🔍 Fetching roles for project: {}", project_id);
         let project_roles: Vec<ProjectRole> = sqlx::query_as(
-            r#"SELECT role, "userId" FROM project_roles WHERE "userId" = $1 AND "projectId" = $2"#,
+            r#"SELECT role FROM project_roles WHERE "userId" = $1 AND "projectId" = $2"#,
         )
         .bind(user_id)
         .bind(project_id)
@@ -289,5 +310,38 @@ async fn fetch_user_roles(
         }
     }
 
+    // Find Task Creator
+    if let Some(task_id) = id {
+        let creators: Vec<(String, String)> =
+            sqlx::query_as(r#"SELECT "id", "createdById" FROM tasks WHERE "id" = $1"#)
+                .bind(task_id)
+                .fetch_all(pool)
+                .await?;
+
+        for creator in creators {
+            println!("🏗️ Found task creator: {}", creator.1);
+            if creator.1 == user_id {
+                roles.push("TaskCreator".to_string());
+            }
+        }
+    }
+
+    // Find Task Assignee
+    if let Some(task_id) = id {
+        let assigners: Vec<(String, String)> = sqlx::query_as(
+            r#"SELECT "taskId","userId" FROM task_assignments WHERE "taskId" = $1 AND "userId" = $2"#,
+        )
+        .bind(task_id)
+        .bind(user_id)
+        .fetch_all(pool)
+        .await?;
+
+        for assignee in assigners {
+            println!("🏗️ Found task creator: {}", assignee.1);
+            if assignee.1 == user_id {
+                roles.push("TaskAssignee".to_string());
+            }
+        }
+    }
     Ok(roles)
 }

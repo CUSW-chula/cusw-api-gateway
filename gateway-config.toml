@@ -13,6 +13,6 @@ param = "project_id"
 
 [[permissions]]
 path = "/api/v2/tasks/:id"
-method = "PATCH"
-allowed_roles = ["admin", "ProjectOwner"]
+method = "GET"
+allowed_roles = ["TaskCreator", "ProjectOwner", "TaskAssignee"]
 param = "id"
