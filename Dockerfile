@@ -1,24 +1,25 @@
-# Dockerfile
 # Build stage
 FROM rust:1.85-alpine3.20 as builder
 
-# Install musl build dependencies
-RUN apk add --no-cache \
-    musl-dev \
-    openssl-dev \
-    postgresql-dev \
-    build-base
+RUN apk add --no-cache musl-dev openssl-dev postgresql-dev build-base
 
 WORKDIR /app
 
-# Create dummy project to cache dependencies
-RUN cargo init --bin
+# First copy Cargo files
 COPY Cargo.toml Cargo.lock ./
+
+# Create dummy source file for dependency caching
+RUN mkdir src && echo 'fn main() {}' > src/main.rs
+
+# Build dependencies
 RUN cargo build --release
 
-# Copy real source code
+# Now copy real source code
 COPY src ./src
 COPY config ./config
+
+# Touch main.rs to ensure rebuild
+RUN touch src/main.rs
 
 # Build final binary
 RUN cargo build --release
@@ -26,29 +27,14 @@ RUN cargo build --release
 # Runtime stage
 FROM alpine:3.20
 
-# Install runtime dependencies
-RUN apk add --no-cache \
-    ca-certificates \
-    libgcc
-
+RUN apk add --no-cache ca-certificates libgcc
 WORKDIR /app
 
-# Copy built binary and configs
-COPY --from=builder \
-    /app/target/release/api-gateway \
-    /app/config/users.toml \
-    /app/config/projects.toml \
-    /app/config/tag.toml \
-    /app/config/tasks.toml \
-    /app/config/users.toml \
-    /app/config/comments.toml \
-    /app/config/etc.toml \
-    ./
+COPY --from=builder /app/target/release/api-gateway .
+COPY --from=builder /app/config/*.toml ./config/
 
-# Run as non-root user
-RUN adduser -D api-gateway 
-USER api-gateway 
+RUN adduser -D api-gateway
+USER api-gateway
 
 EXPOSE 8000
-
 ENTRYPOINT ["./api-gateway"]
