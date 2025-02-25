@@ -9,6 +9,7 @@ use config::{Config, File};
 use core::fmt;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use matchit::Router as MatchRouter;
+use regex::Regex;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::{PgPool, PgPoolOptions};
@@ -135,8 +136,12 @@ async fn main() {
         let method = entry.method.parse::<Method>().unwrap();
         let path = entry.path.clone();
 
+        // Convert colon parameters to curly braces
+        let re = Regex::new(r":(\w+)").unwrap();
+        let adjusted_path = re.replace_all(&path, "{$1}").to_string();
+
         let path_perms = permissions_map
-            .entry(path.clone())
+            .entry(adjusted_path) // Use adjusted path as the key
             .or_insert_with(|| PathPermissions {
                 methods: HashMap::new(),
             });
@@ -149,7 +154,6 @@ async fn main() {
             ),
         );
     }
-
     // Log all registered routes
     println!("🛣️ Registered Routes:");
     for (path, perms) in &permissions_map {
@@ -240,9 +244,7 @@ async fn proxy_handler(
     })?;
 
     // Extract project/task ID from query instead of path
-    let id = param
-        .as_ref()
-        .and_then(|param| query_params.get(param).map(|s| s.as_str()));
+    let id = param.as_ref().and_then(|param| matched.params.get(param));
 
     // Role checking
     let user_roles = fetch_user_roles(&app_state.db_pool, &user_id, id)
