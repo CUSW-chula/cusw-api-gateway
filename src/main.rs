@@ -75,7 +75,10 @@ impl fmt::Display for Role {
 async fn main() {
     dotenv::dotenv().ok(); // Load environment variables
     let config = Config::builder()
-        .add_source(config::File::with_name("gateway-config"))
+        // .add_source(config::File::with_name("gateway-config/projects"))
+        // .add_source(config::File::with_name("gateway-config/users"))
+        .add_source(config::File::with_name("gateway-config/comments"))
+        // .add_source(config::File::with_name("gateway-config/tasks"))
         .build()
         .unwrap();
 
@@ -138,8 +141,8 @@ async fn main() {
         .layer(Extension(shared_router))
         .layer(Extension(app_state));
 
-    println!("🚀 Gateway started on http://localhost:8108");
-    axum::Server::bind(&"0.0.0.0:8108".parse().unwrap())
+    println!("🚀 Gateway started on http://localhost:8000");
+    axum::Server::bind(&"0.0.0.0:8000".parse().unwrap())
         .serve(app.into_make_service())
         .await
         .unwrap();

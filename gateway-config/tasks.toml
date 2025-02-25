@@ -1,0 +1,107 @@
+backend_url = "http://localhost:4000"
+#[ProjectOwner,Member,TaskCreator,TaskAssignee,admin]
+
+[[permissions]]
+path = "/api/v2/tasks"
+method = "GET"
+allowed_roles = ["*"]
+
+[[permissions]] 
+path = "/api/v2/tasks"
+method = "POST"
+allowed_roles = ["*"]
+
+[[permissions]]
+path = "/api/v2/tasks/:id"
+method = "GET"
+allowed_roles = ["TaskCreator", "ProjectOwner", "TaskAssignee"]
+param = "id"
+
+[[permissions]] 
+path = "/api/v2/tasks/:id"
+method = "DELETE"
+allowed_roles = ["*"]
+param = "id"
+
+[[permissions]] 
+path = "/api/v2/tasks/:id"
+method = "PATCH"
+allowed_roles = ["*"]
+param = "id"
+
+[[permissions]] 
+path = "/api/v2/tasks/project/:projectid"
+method = "GET"
+allowed_roles = ["*"]
+param = "projectid"
+
+[[permissions]] 
+path = "/api/v2/tasks/child/:parentid"
+method = "GET"
+allowed_roles = ["*"]
+param = "parentid"
+
+[[permissions]] 
+path = "/api/v2/tasks/template/:id"
+method = "POST"
+allowed_roles = ["*"]
+param = "id"
+
+[[permissions]] 
+path = "/api/v2/tasks/assign"
+method = "POST"
+allowed_roles = ["*"]
+
+[[permissions]] 
+path = "/api/v2/tasks/unassigned"
+method = "DELETE"
+allowed_roles = ["*"]
+
+[[permissions]] 
+path = "/api/v2/tasks/status"
+method = "PATCH"
+allowed_roles = ["*"]
+
+[[permissions]] 
+path = "/api/v2/tasks/emoji"
+method = "POST"
+allowed_roles = ["*"]
+
+[[permissions]] 
+path = "/api/v2/tasks/emoji"
+method = "PATCH"
+allowed_roles = ["*"]
+
+#onChange
+#[[permissions]] 
+#path = "/api/v2/tasks/emoji/:taskId/:userId"
+#method = "GET"
+#allowed_roles = ["*"]
+#param = "taskId"
+
+[[permissions]] 
+path = "/api/v2/tasks/parent-recursive/:taskId"
+method = "GET"
+allowed_roles = ["*"]
+param = "taskId"
+
+[[permissions]] 
+path = "/api/v2/tasks/parent/:taskId"
+method = "GET"
+allowed_roles = ["*"]
+param = "taskId"
+
+[[permissions]] 
+path = "/api/v2/tasks/money"
+method = "POST"
+allowed_roles = ["*"]
+
+[[permissions]] 
+path = "/api/v2/tasks/money"
+method = "DELETE"
+allowed_roles = ["*"]
+
+[[permissions]] 
+path = "/api/v2/tasks/date"
+method = "PATCH"
+allowed_roles = ["*"]

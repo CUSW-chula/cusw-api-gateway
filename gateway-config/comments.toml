@@ -1,0 +1,25 @@
+backend_url = "http://localhost:4000"
+#[ProjectOwner,Member,TaskCreator,TaskAssignee,admin]
+
+[[permissions]] #TESTED pjowner, member, taskcreator, taskassignee, admin, outsider
+path = "/api/v2/comments/:id"
+method = "GET"
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee", "admin"]
+param = "id"
+
+[[permissions]] #UNTESTED
+path = "/api/v2/comments/:id"
+method = "DELETE"
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee", "admin"]
+param = "id"
+
+[[permissions]] #UNTESTED
+path = "/api/v2/comments/:id"
+method = "PATCH"
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee", "admin"]
+param = "id"
+
+[[permissions]] #UNTESTED
+path = "/api/v2/comments"
+method = "POST"
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee", "admin"]
