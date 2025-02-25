@@ -1,7 +1,7 @@
 backend_url = "http://localhost:4000"
 #[ProjectOwner,Member,TaskCreator,TaskAssignee,admin]
 
-[[permissions]] #UNTESTED
+[[permissions]] #TESTED admin, not admin
 path = "/api/v2/tasks"
 method = "GET"
 allowed_roles = ["admin"]
@@ -12,11 +12,11 @@ method = "POST"
 allowed_roles = ["ProjectOwner", "Member"]
 param = "projectId"
 
-# [[permissions]] #UNTESTED
-# path = "/api/v2/tasks/:id"
-# method = "GET"
-# allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
-# param = "id"
+[[permissions]] #UNTESTED
+path = "/api/v2/tasks/:id"
+method = "GET"
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+param = "id"
 
 # [[permissions]] #UNTESTED
 # path = "/api/v2/tasks/:id"
