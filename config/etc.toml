@@ -1,0 +1,39 @@
+backend_url = "http://localhost:4000"
+#[ProjectOwner,Member,TaskCreator,TaskAssignee,admin]
+
+[[permissions]] #NOT PASSED, should have param taskId
+path = "/api/v2/file/:id"
+method = "GET"
+allowed_roles = ["*"]
+param = "id"
+
+[[permissions]] #NOT PASSED, should have param taskId
+path = "/api/v2/file"
+method = "POST"
+allowed_roles = ["*"]
+
+[[permissions]] #NOT PASSED, should have param taskId
+path = "/api/v2/file"
+method = "DELETE"
+allowed_roles = ["*"]
+
+[[permissions]] #TESTED pjowner, member, taskcreator, taskassignee, admin, outsider
+path = "/api/v2/activities/:id"
+method = "GET"
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee", "admin"]
+param = "id"
+
+[[permissions]] #TESTED
+path = "/api/v2/template"
+method = "GET"
+allowed_roles = ["*"]
+
+[[permissions]] #TESTED
+path = "/api/v2/template"
+method = "POST"
+allowed_roles = ["admin"]
+
+[[permissions]] #TESTED
+path = "/api/v2/template"
+method = "DELETE"
+allowed_roles = ["admin"]
