@@ -190,7 +190,7 @@ async fn proxy_handler(
     })?;
 
     // Extract project/task ID from query instead of path
-    let id = param.as_ref().and_then(|param| query_params.get(param).map(|s| s.as_str()));
+    let id = param.as_ref().and_then(|param| matched.params.get(param));
 
     // Role checking
     let user_roles = fetch_user_roles(&app_state.db_pool, &user_id, id)
