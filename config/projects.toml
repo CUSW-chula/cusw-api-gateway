@@ -1,0 +1,6 @@
+backend_url = "http://localhost:4000"
+
+[[permissions]]
+path = "/api/v2/projjjjj"
+method = "GET"
+allowed_roles = ["admin"]

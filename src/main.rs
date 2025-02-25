@@ -5,7 +5,7 @@ use axum::{
     routing::any,
     Extension, Router,
 };
-use config::Config;
+use config::{Config, File};
 use core::fmt;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use matchit::Router as MatchRouter;
@@ -73,15 +73,50 @@ impl fmt::Display for Role {
 
 #[tokio::main]
 async fn main() {
-    dotenv::dotenv().ok(); // Load environment variables
-    let config = Config::builder()
-        .add_source(config::File::with_name("gateway-config"))
-        .build()
-        .unwrap();
+    dotenv::dotenv().ok();
+    println!("🚀 Starting gateway initialization...");
 
-    let permissions: Vec<PermissionEntry> = config.get("permissions").unwrap();
-    let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set in .env");
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set in .env");
+    let config_files_str =
+        std::env::var("CONFIG_FILES").unwrap_or_else(|_| "gateway-config.toml".into());
+
+    // 1. Configure multi-source configuration
+    let config_files = config_files_str
+        .split(',')
+        .map(|s| s.trim())
+        .collect::<Vec<_>>();
+
+    println!("🔧 Loading configuration files: {:?}", config_files);
+
+    // 2. Build base configuration with environment overrides
+    let config = Config::builder()
+        .add_source(
+            config_files
+                .iter()
+                .map(|f| File::with_name(f))
+                .collect::<Vec<_>>(),
+        )
+        .build()
+        .expect("Failed to build configuration");
+
+    // 3. Load and merge permissions from all config files
+    let mut permissions = Vec::new();
+    for file in &config_files {
+        let cfg = Config::builder()
+            .add_source(File::with_name(file))
+            .build()
+            .unwrap_or_else(|_| panic!("Failed to load config file: {}", file));
+
+        if let Ok(mut perms) = cfg.get::<Vec<PermissionEntry>>("permissions") {
+            println!("📄 Loaded {} permissions from {}", perms.len(), file);
+            permissions.append(&mut perms);
+        }
+    }
+
+    println!("🔐 Total merged permissions: {}", permissions.len());
+
+    // 4. Initialize core components
+    let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let backend_url = config.get_string("backend_url").unwrap();
 
     let db_pool = PgPoolOptions::new()
@@ -90,11 +125,13 @@ async fn main() {
         .await
         .expect("Failed to create database pool");
 
+    // 5. Build route permissions map
     let mut router = MatchRouter::new();
+
+    // Changed: Process permissions directly into the router
     let mut permissions_map = HashMap::new();
 
-    // Register permissions and log them
-    for entry in permissions {
+    for entry in &permissions {
         let method = entry.method.parse::<Method>().unwrap();
         let path = entry.path.clone();
 
@@ -104,9 +141,13 @@ async fn main() {
                 methods: HashMap::new(),
             });
 
-        path_perms
-            .methods
-            .insert(method, (entry.allowed_roles_permission_entry, entry.param));
+        path_perms.methods.insert(
+            method,
+            (
+                entry.allowed_roles_permission_entry.clone(),
+                entry.param.clone(),
+            ),
+        );
     }
 
     // Log all registered routes
@@ -121,11 +162,15 @@ async fn main() {
         }
     }
 
-    // Insert paths into router
+    // Changed: Take ownership of the permissions_map entries
     for (path, perms) in permissions_map {
-        router.insert(&path, perms).unwrap();
+        // Removed & here
+        router
+            .insert(&path, perms)
+            .unwrap_or_else(|_| panic!("Failed to register route: {}", path));
     }
 
+    // 8. Prepare shared state
     let shared_router = Arc::new(Mutex::new(router));
     let app_state = Arc::new(AppState {
         db_pool,
@@ -133,13 +178,18 @@ async fn main() {
         backend_url,
     });
 
+    // 9. Configure Axum server
     let app = Router::new()
         .route("/*path", any(proxy_handler))
         .layer(Extension(shared_router))
         .layer(Extension(app_state));
 
-    println!("🚀 Gateway started on http://localhost:5000");
-    axum::Server::bind(&"0.0.0.0:5000".parse().unwrap())
+    let bind_address = std::env::var("BIND_ADDRESS").unwrap_or_else(|_| "0.0.0.0:8000".into());
+
+    println!("\n🚀 Gateway initialized successfully");
+    println!("🌐 Listening on: http://{}", bind_address);
+
+    axum::Server::bind(&bind_address.parse().unwrap())
         .serve(app.into_make_service())
         .await
         .unwrap();
@@ -190,7 +240,9 @@ async fn proxy_handler(
     })?;
 
     // Extract project/task ID from query instead of path
-    let id = param.as_ref().and_then(|param| query_params.get(param).map(|s| s.as_str()));
+    let id = param
+        .as_ref()
+        .and_then(|param| query_params.get(param).map(|s| s.as_str()));
 
     // Role checking
     let user_roles = fetch_user_roles(&app_state.db_pool, &user_id, id)
