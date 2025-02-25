@@ -35,14 +35,14 @@ WORKDIR /app
 
 # Copy built binary and configs
 COPY --from=builder \
-    /app/target/release/gateway \
+    /app/target/release/api-gateway \
     /app/gateway-config.toml \
     ./
 
 # Run as non-root user
-RUN adduser -D gateway
-USER gateway
+RUN adduser -D api-gateway 
+USER api-gateway 
 
 EXPOSE 5000
 
-ENTRYPOINT ["./gateway"]
+ENTRYPOINT ["./api-gateway"]
