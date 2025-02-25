@@ -38,12 +38,17 @@ COPY --from=builder \
     /app/target/release/api-gateway \
     /app/config/users.toml \
     /app/config/projects.toml \
+    /app/config/tag.toml \
+    /app/config/tasks.toml \
+    /app/config/users.toml \
+    /app/config/comment.toml \
+    /app/config/etc.toml \
     ./
 
 # Run as non-root user
 RUN adduser -D api-gateway 
 USER api-gateway 
 
-EXPOSE 5000
+EXPOSE 8000
 
 ENTRYPOINT ["./api-gateway"]
