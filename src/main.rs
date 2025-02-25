@@ -154,6 +154,12 @@ async fn proxy_handler(
     Extension(router): Extension<Arc<Mutex<MatchRouter<PathPermissions>>>>,
     Extension(app_state): Extension<Arc<AppState>>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    // Extract query parameters
+    let query_params: HashMap<String, String> = uri
+        .query()
+        .map(|q| serde_urlencoded::from_str(q).unwrap_or_default())
+        .unwrap_or_default();
+
     // Auth handling
     let token = headers
         .get("Authorization")
@@ -168,7 +174,6 @@ async fn proxy_handler(
     let router = router.lock().await;
 
     println!("\n🔍 Incoming Request: {} {}", method, path);
-
     let matched = router.at(path).map_err(|_| {
         println!("❌ No route matched for path: {}", path);
         StatusCode::NOT_FOUND
@@ -176,6 +181,7 @@ async fn proxy_handler(
 
     println!("✅ Matched Route: {:?}", matched.value.methods);
     println!("📦 Route Params: {:?}", matched.params);
+    println!("🔍 Query Params: {:?}", query_params);
 
     // Method validation
     let (allowed_roles, param) = matched.value.methods.get(&method).ok_or_else(|| {
@@ -183,8 +189,8 @@ async fn proxy_handler(
         StatusCode::METHOD_NOT_ALLOWED
     })?;
 
-    // Project ID extraction
-    let id = param.as_ref().and_then(|param| matched.params.get(param));
+    // Extract project/task ID from query instead of path
+    let id = param.as_ref().and_then(|param| query_params.get(param).map(|s| s.as_str()));
 
     // Role checking
     let user_roles = fetch_user_roles(&app_state.db_pool, &user_id, id)
@@ -195,7 +201,6 @@ async fn proxy_handler(
         })?;
 
     println!("👤 User Roles: {:?}", user_roles);
-
     let is_admin = user_roles.contains(&"admin".to_string());
 
     if !is_admin {
@@ -206,7 +211,6 @@ async fn proxy_handler(
             return Err(StatusCode::FORBIDDEN);
         }
     }
-    
 
     // Proxy request
     let client = reqwest::Client::new();
