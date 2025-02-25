@@ -199,14 +199,14 @@ async fn proxy_handler(
     let is_admin = user_roles.contains(&"admin".to_string());
 
     if !is_admin {
-        // If not admin, enforce normal role checks
-        if !allowed_roles.iter().any(|role| user_roles.contains(role)) {
+        if allowed_roles.contains(&"*".to_string()) {
+            println!("✅ Wildcard role found - allowing access");
+        } else if !allowed_roles.iter().any(|role| user_roles.contains(role)) {
             println!("⛔ Access denied. Required roles: {:?}", allowed_roles);
             return Err(StatusCode::FORBIDDEN);
         }
-    } else {
-        println!("👑 Admin override - granting access to all routes");
     }
+    
 
     // Proxy request
     let client = reqwest::Client::new();
