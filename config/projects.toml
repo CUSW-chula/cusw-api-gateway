@@ -1,6 +1,74 @@
 backend_url = "http://localhost:4000"
+#[ProjectOwner,Member,TaskCreator,TaskAssignee,admin]
 
-[[permissions]]
-path = "/api/v2/projjjjj"
+[projects]
+
+[[permissions]] #TESTED pjowner,pjmember,admin,outsider
+path = "/api/v2/projects"
 method = "GET"
-allowed_roles = ["admin"]
+allowed_roles = ["*"]
+
+[[permissions]] #TESTED admin,notadmin
+path = "/api/v2/projects"
+method = "POST"
+allowed_roles = ["*"]
+
+[[permissions]] #TESTED pjowner,pjmember,admin,outsider
+path = "/api/v2/projects/:project_id"
+method = "GET"
+allowed_roles = ["ProjectOwner","Member"]
+param = "project_id"
+
+[[permissions]] #TESTED pjowner,admin,outsider
+path = "/api/v2/projects/:project_id"
+method = "PATCH"
+allowed_roles = ["ProjectOwner"]
+param = "project_id"
+
+[[permissions]] #TESTED pjowner,admin,outsider
+path = "/api/v2/projects/:project_id"
+method = "DELETE"
+allowed_roles = ["ProjectOwner"]
+param = "project_id"
+
+[[permissions]] #TESTED pjowner,pjmember,admin,outsider
+path = "/api/v2/projects/tag/:tag_id"
+method = "POST"
+allowed_roles = ["ProjectOwner"]
+param = "tag_id"
+
+[[permissions]] #TESTED pjowner,pjmember,admin,outsider
+path = "/api/v2/projects/tag/:tag_id"
+method = "DELETE"
+allowed_roles = ["ProjectOwner"]
+param = "tag_id"
+
+[[permissions]] #UNTESTED
+path = "/api/v2/projects/pin/:project_id"
+method = "POST"
+allowed_roles = ["*"]
+param = "tag_id"
+
+[[permissions]] #UNTESTED
+path = "/api/v2/projects/pin/:project_id"
+method = "DELETE"
+allowed_roles = ["*"]
+param = "tag_id"
+
+[[permissions]] #NOT PASSED, change to body instead of param
+path = "/api/v2/projects/owner/:project_id"
+method = "PATCH"
+allowed_roles = ["ProjectOwner"]
+param = "project_id"
+
+[[permissions]] #NOT PASSED, admin can't assign ,pjonwer and pjmember passed
+path = "/api/v2/projects/assign/:project_id"
+method = "POST"
+allowed_roles = ["ProjectOwner"]
+param = "project_id"
+
+[[permissions]] #NOT PASSED, admin can't assign ,pjonwer and pjmember passed
+path = "/api/v2/projects/assign/:project_id"
+method = "DELETE"
+allowed_roles = ["ProjectOwner"]
+param = "project_id"

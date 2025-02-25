@@ -149,6 +149,7 @@ async fn main() {
             ),
         );
     }
+
     // Log all registered routes
     println!("🛣️ Registered Routes:");
     for (path, perms) in &permissions_map {

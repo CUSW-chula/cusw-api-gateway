@@ -1,0 +1,35 @@
+backend_url = "http://localhost:4000"
+#[ProjectOwner,Member,TaskCreator,TaskAssignee,admin]
+
+[[permissions]] #TESTED 
+path = "/api/v2/tags"
+method = "GET"
+allowed_roles = ["*"]
+
+[[permissions]] #TESTED
+path = "/api/v2/tags/:id"
+method = "GET"
+allowed_roles = ["*"]
+param = "id"
+
+[[permissions]] #TESTED
+path = "/api/v2/tags/getassigntag/:taskId"
+method = "GET"
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+param = "taskId"
+
+[[permissions]] #TESTED
+path = "/api/v2/tags/getassigntask/:tagId"
+method = "GET"
+allowed_roles = ["*"]
+param = "tagId"
+
+[[permissions]] #TESTED
+path = "/api/v2/tags/assign"
+method = "POST"
+allowed_roles = ["*"]
+
+[[permissions]] #TESTED
+path = "/api/v2/tags/unassigned"
+method = "DELETE"
+allowed_roles = ["*"]
