@@ -1,4 +1,4 @@
-backend_url = "http://prod-app:4000"
+backend_url = "https://cusw-workspace.sa.chula.ac.th"
 #[ProjectOwner,Member,TaskCreator,TaskAssignee,admin]
 
 [[permissions]] #NOT PASSED, should have param taskId
