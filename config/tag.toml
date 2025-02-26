@@ -6,6 +6,11 @@ path = "/api/v2/tags"
 method = "GET"
 allowed_roles = ["*"]
 
+[[permissions]] #TESTED 
+path = "/api/v2/tags"
+method = "POST"
+allowed_roles = ["admin"]
+
 [[permissions]] #TESTED
 path = "/api/v2/tags/:id"
 method = "GET"
