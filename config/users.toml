@@ -22,3 +22,9 @@ path = "/api/v2/users/email/:id"
 method = "GET"
 allowed_roles = ["*"]
 param = "id"
+
+[[permissions]] #TESTED admin,notadmin
+path = "/api/v2/users/project/:id"
+method = "GET"
+allowed_roles = ["*"]
+param = "id"
