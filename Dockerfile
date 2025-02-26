@@ -1,8 +1,9 @@
 # Build stage
-FROM rust:1.85-alpine as builder
+FROM rust:1.85-slim-bookworm as builder
 
-RUN apk add --no-cache \
-    musl-dev openssl-dev postgresql-dev build-base pkgconfig
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    musl-dev libssl-dev libpq-dev build-essential pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -26,17 +27,18 @@ RUN touch src/main.rs
 RUN cargo build --release
 
 # Runtime stage
-FROM alpine:latest
+FROM debian:bookworm-slim
 
-RUN apk add --no-cache \
-    ca-certificates libgcc libssl3
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates libgcc-s1 libssl3 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY --from=builder /app/target/release/api-gateway .
 COPY --from=builder /app/config/*.toml ./config/
 
-RUN adduser -D api-gateway
+RUN useradd -m api-gateway
 USER api-gateway
 
 EXPOSE 8000
