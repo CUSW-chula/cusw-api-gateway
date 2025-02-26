@@ -24,8 +24,8 @@ allowed_roles = ["admin"]
 param = "id"
 
 [[permissions]] #TESTED admin,notadmin
-path = "/api/v2/users/:id"
-method = "DELETE"
+path = "/api/v2/users/activate/:id"
+method = "PATCH"
 allowed_roles = ["admin"]
 param = "id"
 
