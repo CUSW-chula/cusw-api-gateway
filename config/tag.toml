@@ -33,7 +33,7 @@ param = "tagId"
 path = "/api/v2/tags/assign/:taskId"
 method = "POST"
 allowed_roles = ["ProjectOwner", "TaskCreator"]
-param = "tagId"
+param = "taskId"
 
 [[permissions]] #TESTED
 path = "/api/v2/tags/unassigned/:taskId"
