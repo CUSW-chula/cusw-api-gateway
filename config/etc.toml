@@ -8,14 +8,16 @@ allowed_roles = ["*"]
 param = "id"
 
 [[permissions]] #NOT PASSED, should have param taskId
-path = "/api/v2/file"
+path = "/api/v2/file/:id"
 method = "POST"
-allowed_roles = ["*"]
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+param = "id"
 
 [[permissions]] #NOT PASSED, should have param taskId
-path = "/api/v2/file"
+path = "/api/v2/file/:id"
 method = "DELETE"
-allowed_roles = ["*"]
+allowed_roles = ["ProjectOwner", "TaskCreator"]
+param = "id"
 
 [[permissions]] #TESTED pjowner, member, taskcreator, taskassignee, admin, outsider
 path = "/api/v2/activities/:id"

@@ -4,7 +4,7 @@ backend_url = "http://prod-app:4000"
 [[permissions]] #TESTED admin,notadmin
 path = "/api/v2/users"
 method = "GET"
-allowed_roles = ["admin"]
+allowed_roles = ["*"]
 
 [[permissions]] #TESTED admin,notadmin
 path = "/api/v2/users"

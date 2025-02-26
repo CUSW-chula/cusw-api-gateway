@@ -20,6 +20,6 @@ allowed_roles = ["*"]
 param = "id"
 
 [[permissions]] #NOT PASSED, should have param taskId
-path = "/api/v2/comments"
+path = "/api/v2/comments/:id"
 method = "POST"
-allowed_roles = ["*"]
+allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
