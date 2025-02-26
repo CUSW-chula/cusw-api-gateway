@@ -23,3 +23,4 @@ param = "id"
 path = "/api/v2/comments/:id"
 method = "POST"
 allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+param = "id"
