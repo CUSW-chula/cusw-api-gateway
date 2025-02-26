@@ -31,10 +31,10 @@ method = "GET"
 allowed_roles = ["*"]
 
 [[permissions]] #TESTED
-path = "/api/v2/template/:project_id"
+path = "/api/v2/template/:id"
 method = "POST"
 allowed_roles = ["ProjectOwner"]
-param = "project_id"
+param = "id"
 
 [[permissions]] #TESTED
 path = "/api/v2/template"
