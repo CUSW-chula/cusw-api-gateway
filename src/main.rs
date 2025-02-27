@@ -217,7 +217,11 @@ async fn init_tracing() {
         user_id,
         status,
         params,
-        query
+        query,
+        matched_route,
+        required_roles,
+        user_roles,
+        is_admin
     )
 )]
 async fn proxy_handler(
@@ -265,6 +269,10 @@ async fn proxy_handler(
         StatusCode::METHOD_NOT_ALLOWED
     })?;
 
+    tracing::Span::current()
+        .record("matched_route", &format!("{:?}", matched.value.methods))
+        .record("required_roles", &format!("{:?}", allowed_roles));
+
     let param_name = param.as_ref().map(|p| p.as_str()).unwrap_or_default();
     let id = matched.params.get(param_name);
 
@@ -275,20 +283,44 @@ async fn proxy_handler(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    debug!("User roles: {:?}", user_roles);
     let is_admin = user_roles.contains(&"admin".to_string());
+    tracing::Span::current()
+        .record("user_roles", &format!("{:?}", user_roles))
+        .record("is_admin", &is_admin);
+
+    info!(
+        user_roles = ?user_roles,
+        required_roles = ?allowed_roles,
+        "Checking authorization"
+    );
 
     if !is_admin {
         if allowed_roles.contains(&"*".to_string()) {
-            debug!("Wildcard role found - allowing access");
-        } else if !allowed_roles.iter().any(|role| user_roles.contains(role)) {
-            error!("Access denied. Required roles: {:?}", allowed_roles);
-            return Err(StatusCode::FORBIDDEN);
+            info!("Wildcard access granted for route");
+        } else {
+            let has_required_role = allowed_roles.iter().any(|role| user_roles.contains(role));
+            if !has_required_role {
+                error!(
+                    "Access denied. User roles: {:?}, Required roles: {:?}",
+                    user_roles, allowed_roles
+                );
+                return Err(StatusCode::FORBIDDEN);
+            }
+            info!(
+                "Access granted with roles: {:?}",
+                user_roles
+                    .iter()
+                    .filter(|r| allowed_roles.contains(r))
+                    .collect::<Vec<_>>()
+            );
         }
+    } else {
+        info!("Admin access granted");
     }
 
     let client = reqwest::Client::new();
     let backend_url = format!("{}{}", app_state.backend_url, uri);
+    info!(backend_url = %backend_url, "Forwarding request");
 
     let response = client
         .request(method.as_str().parse().unwrap(), &backend_url)
@@ -307,7 +339,121 @@ async fn proxy_handler(
 
     tracing::Span::current().record("status", &status.as_u16());
 
+    info!(
+        status = %status,
+        content_length = bytes.len(),
+        "Response received"
+    );
+
     Ok((status, headers, bytes))
+}
+
+#[instrument(
+    skip_all,
+    fields(
+        user_id = %user_id,
+        resource_id = ?id,
+        found_roles
+    )
+)]
+async fn fetch_user_roles(
+    pool: &PgPool,
+    user_id: &str,
+    id: Option<&str>,
+) -> Result<Vec<String>, sqlx::Error> {
+    let mut roles = Vec::new();
+
+    info!("Checking user admin status");
+    let user: Option<UserRole> = sqlx::query_as("SELECT admin FROM users WHERE id = $1")
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await?;
+
+    if let Some(user) = user {
+        if user.admin {
+            info!("Admin role found");
+            roles.push("admin".to_string());
+        }
+    }
+
+    if let Some(task_id) = id {
+        info!(%task_id, "Checking task-related roles");
+        let project_ids: Vec<(String, String)> =
+            sqlx::query_as(r#"SELECT "id", "projectId" FROM tasks WHERE "id" = $1"#)
+                .bind(task_id)
+                .fetch_all(pool)
+                .await?;
+
+        for project_id in project_ids {
+            info!(project_id = %project_id.1, "Checking project roles");
+            let project_roles: Vec<ProjectRole> = sqlx::query_as(
+                r#"SELECT role FROM project_roles WHERE "userId" = $1 AND "projectId" = $2"#,
+            )
+            .bind(user_id)
+            .bind(project_id.1)
+            .fetch_all(pool)
+            .await?;
+
+            for role in project_roles {
+                info!(role = %role.role, "Found project role");
+                roles.push(role.role.to_string());
+            }
+        }
+    }
+
+    if let Some(project_id) = id {
+        info!(%project_id, "Checking direct project roles");
+        let project_roles: Vec<ProjectRole> = sqlx::query_as(
+            r#"SELECT role FROM project_roles WHERE "userId" = $1 AND "projectId" = $2"#,
+        )
+        .bind(user_id)
+        .bind(project_id)
+        .fetch_all(pool)
+        .await?;
+
+        for role in project_roles {
+            info!(role = %role.role, "Found direct project role");
+            roles.push(role.role.to_string());
+        }
+    }
+
+    if let Some(task_id) = id {
+        info!(%task_id, "Checking task creator role");
+        let creators: Vec<(String, String)> =
+            sqlx::query_as(r#"SELECT "id", "createdById" FROM tasks WHERE "id" = $1"#)
+                .bind(task_id)
+                .fetch_all(pool)
+                .await?;
+
+        for creator in creators {
+            if creator.1 == user_id {
+                info!("Task creator role found");
+                roles.push("TaskCreator".to_string());
+            }
+        }
+    }
+
+    if let Some(task_id) = id {
+        info!(%task_id, "Checking task assignee role");
+        let assigners: Vec<(String, String)> = sqlx::query_as(
+            r#"SELECT "taskId","userId" FROM task_assignments WHERE "taskId" = $1 AND "userId" = $2"#,
+        )
+        .bind(task_id)
+        .bind(user_id)
+        .fetch_all(pool)
+        .await?;
+
+        for assignee in assigners {
+            if assignee.1 == user_id {
+                info!("Task assignee role found");
+                roles.push("TaskAssignee".to_string());
+            }
+        }
+    }
+
+    tracing::Span::current().record("found_roles", &format!("{:?}", roles));
+    info!(total_roles = roles.len(), "Completed role collection");
+    Ok(roles)
 }
 
 fn decode_jwt(token: &str, secret: &str) -> Result<String, JwtError> {
@@ -323,105 +469,4 @@ fn decode_jwt(token: &str, secret: &str) -> Result<String, JwtError> {
             error!(error = %e, "JWT decode failed");
             e
         })
-}
-
-#[instrument(
-    skip_all,
-    fields(
-        user_id = %user_id,
-        resource_id = ?id
-    )
-)]
-async fn fetch_user_roles(
-    pool: &PgPool,
-    user_id: &str,
-    id: Option<&str>,
-) -> Result<Vec<String>, sqlx::Error> {
-    let mut roles = Vec::new();
-
-    let user: Option<UserRole> = sqlx::query_as("SELECT admin FROM users WHERE id = $1")
-        .bind(user_id)
-        .fetch_optional(pool)
-        .await?;
-
-    if let Some(user) = user {
-        if user.admin {
-            debug!("User is admin");
-            roles.push("admin".to_string());
-        }
-    }
-
-    if let Some(task_id) = id {
-        let project_ids: Vec<(String, String)> =
-            sqlx::query_as(r#"SELECT "id", "projectId" FROM tasks WHERE "id" = $1"#)
-                .bind(task_id)
-                .fetch_all(pool)
-                .await?;
-
-        for project_id in project_ids {
-            debug!("Fetching roles for project: {}", project_id.1);
-            let project_roles: Vec<ProjectRole> = sqlx::query_as(
-                r#"SELECT role FROM project_roles WHERE "userId" = $1 AND "projectId" = $2"#,
-            )
-            .bind(user_id)
-            .bind(project_id.1)
-            .fetch_all(pool)
-            .await?;
-
-            for role in project_roles {
-                debug!("Found project role: {}", role.role);
-                roles.push(role.role.to_string());
-            }
-        }
-    }
-
-    if let Some(project_id) = id {
-        debug!("Fetching roles for project: {}", project_id);
-        let project_roles: Vec<ProjectRole> = sqlx::query_as(
-            r#"SELECT role FROM project_roles WHERE "userId" = $1 AND "projectId" = $2"#,
-        )
-        .bind(user_id)
-        .bind(project_id)
-        .fetch_all(pool)
-        .await?;
-
-        for role in project_roles {
-            debug!("Found project role: {}", role.role);
-            roles.push(role.role.to_string());
-        }
-    }
-
-    if let Some(task_id) = id {
-        let creators: Vec<(String, String)> =
-            sqlx::query_as(r#"SELECT "id", "createdById" FROM tasks WHERE "id" = $1"#)
-                .bind(task_id)
-                .fetch_all(pool)
-                .await?;
-
-        for creator in creators {
-            if creator.1 == user_id {
-                debug!("User is task creator");
-                roles.push("TaskCreator".to_string());
-            }
-        }
-    }
-
-    if let Some(task_id) = id {
-        let assigners: Vec<(String, String)> = sqlx::query_as(
-            r#"SELECT "taskId","userId" FROM task_assignments WHERE "taskId" = $1 AND "userId" = $2"#,
-        )
-        .bind(task_id)
-        .bind(user_id)
-        .fetch_all(pool)
-        .await?;
-
-        for assignee in assigners {
-            if assignee.1 == user_id {
-                debug!("User is task assignee");
-                roles.push("TaskAssignee".to_string());
-            }
-        }
-    }
-
-    Ok(roles)
 }
