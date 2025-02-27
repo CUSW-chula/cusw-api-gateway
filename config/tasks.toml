@@ -63,7 +63,7 @@ param = "taskId"
 [[permissions]] #TESTED pjowner, admin, outsider
 path = "/api/v2/tasks/status/:taskId"
 method = "PATCH"
-allowed_roles = ["ProjectOwner", "TaskCreator"]
+allowed_roles = ["*"]
 param = "taskId"
 
 
