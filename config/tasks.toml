@@ -89,13 +89,13 @@ param = "taskId"
 [[permissions]] #TESTED pjowner, admin, outsider, taskassignee
 path = "/api/v2/tasks/parent-recursive/:taskId"
 method = "GET"
-allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+allowed_roles = ["*"]
 param = "taskId"
 
 [[permissions]] #TESTED pjowner, admin, outsider, taskassignee
 path = "/api/v2/tasks/parent/:taskId"
 method = "GET"
-allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+allowed_roles = ["*"]
 param = "taskId"
 
 [[permissions]] #TESTED pjowner, admin, outsider, taskassignee
