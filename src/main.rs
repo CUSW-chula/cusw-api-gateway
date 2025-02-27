@@ -7,7 +7,7 @@ use axum::{
 };
 use config::{Config, File};
 use core::fmt;
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation, errors::Error as JwtError};
+use jsonwebtoken::{decode, errors::Error as JwtError, Algorithm, DecodingKey, Validation};
 use matchit::Router as MatchRouter;
 use reqwest;
 use serde::{Deserialize, Serialize};
@@ -16,9 +16,9 @@ use sqlx::Type;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{debug, error, info, instrument, Level};
-use tracing_loki::layer::LokiLayer;
-use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing::{debug, error, info, instrument};
+use tracing_loki::url;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 #[derive(Debug, Deserialize)]
 struct PermissionEntry {
@@ -80,13 +80,22 @@ async fn main() {
 
     info!("🚀 Starting gateway initialization...");
 
-    let config_files_str = std::env::var("CONFIG_FILES").unwrap_or_else(|_| "gateway-config.toml".into());
-    let config_files = config_files_str.split(',').map(|s| s.trim()).collect::<Vec<_>>();
+    let config_files_str =
+        std::env::var("CONFIG_FILES").unwrap_or_else(|_| "gateway-config.toml".into());
+    let config_files = config_files_str
+        .split(',')
+        .map(|s| s.trim())
+        .collect::<Vec<_>>();
 
     info!("🔧 Loading configuration files: {:?}", config_files);
 
     let config = Config::builder()
-        .add_source(config_files.iter().map(|f| File::with_name(f)).collect::<Vec<_>>())
+        .add_source(
+            config_files
+                .iter()
+                .map(|f| File::with_name(f))
+                .collect::<Vec<_>>(),
+        )
         .build()
         .expect("Failed to build configuration");
 
@@ -151,7 +160,8 @@ async fn main() {
     }
 
     for (path, perms) in permissions_map {
-        router.insert(&path, perms)
+        router
+            .insert(&path, perms)
             .unwrap_or_else(|_| panic!("Failed to register route: {}", path));
     }
 
@@ -180,20 +190,23 @@ async fn main() {
 
 async fn init_tracing() {
     let loki_url = std::env::var("LOKI_URL")
-        .unwrap_or_else(|_| "http://loki:3100/loki/api/v1/push".into());
-    
-    let (loki_layer, task) = tracing_loki::layer(
-        loki_url,
-        vec![("service".into(), "gateway".into())],
-        vec![],
-    ).unwrap();
+        .unwrap_or_else(|_| "http://loki:3100/loki/api/v1/push".into())
+        .parse::<url::Url>()
+        .expect("Invalid LOKI_URL");
+
+    let mut labels = HashMap::new();
+    labels.insert("service".to_string(), "gateway".to_string());
+
+    let (loki_layer, task) = tracing_loki::layer(loki_url, labels, HashMap::new()).unwrap();
 
     tracing_subscriber::registry()
-        .with(EnvFilter::from_default_env()
-            .add_directive("gateway=info".parse().unwrap())
-            .add_directive("hyper=info".parse().unwrap())
-            .add_directive("tower=info".parse().unwrap()))
-        .with(fmt::Layer::new().json())
+        .with(
+            EnvFilter::from_default_env()
+                .add_directive("gateway=info".parse().unwrap())
+                .add_directive("hyper=info".parse().unwrap())
+                .add_directive("tower=info".parse().unwrap()),
+        )
+        .with(tracing_subscriber::fmt::layer().json())
         .with(loki_layer)
         .init();
 
@@ -235,11 +248,10 @@ async fn proxy_handler(
             StatusCode::UNAUTHORIZED
         })?;
 
-    let user_id = decode_jwt(token, &app_state.jwt_secret)
-        .map_err(|e| {
-            error!(error = %e, "JWT validation failed");
-            StatusCode::UNAUTHORIZED
-        })?;
+    let user_id = decode_jwt(token, &app_state.jwt_secret).map_err(|e| {
+        error!(error = %e, "JWT validation failed");
+        StatusCode::UNAUTHORIZED
+    })?;
 
     tracing::Span::current().record("user_id", &user_id);
 
