@@ -18,7 +18,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument};
 use tracing_loki::url;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Debug, Deserialize)]
 struct PermissionEntry {
@@ -189,24 +189,20 @@ async fn main() {
 }
 
 async fn init_tracing() {
-    let loki_url = std::env::var("LOKI_URL")
-        .unwrap_or_else(|_| "http://loki:3100/loki/api/v1/push".into())
+    let loki_url = "http://loki:3100/loki/api/v1/push"
         .parse::<url::Url>()
-        .expect("Invalid LOKI_URL");
+        .expect("Invalid Loki URL");
 
-    let mut labels = HashMap::new();
-    labels.insert("service".to_string(), "gateway".to_string());
+    let mut labels: HashMap<String, String> = HashMap::new();
+    labels.insert("service".to_string(), "gateway".to_string()); // Ensure both are Strings
 
-    let (loki_layer, task) = tracing_loki::layer(loki_url, labels, HashMap::new()).unwrap();
+    let (loki_layer, task) =
+        tracing_loki::layer(loki_url, labels, HashMap::<String, String>::new())
+            .expect("Failed to initialize Loki logging");
 
     tracing_subscriber::registry()
-        .with(
-            EnvFilter::from_default_env()
-                .add_directive("gateway=info".parse().unwrap())
-                .add_directive("hyper=info".parse().unwrap())
-                .add_directive("tower=info".parse().unwrap()),
-        )
-        .with(tracing_subscriber::fmt::layer().json())
+        .with(tracing_subscriber::fmt::layer().json()) // JSON logs
+        .with(tracing_subscriber::EnvFilter::new("info")) // Log level
         .with(loki_layer)
         .init();
 
