@@ -7,7 +7,7 @@ use axum::{
 };
 use config::{Config, File};
 use core::fmt;
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation, errors::Error as JwtError};
 use matchit::Router as MatchRouter;
 use reqwest;
 use serde::{Deserialize, Serialize};
@@ -16,6 +16,9 @@ use sqlx::Type;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::{debug, error, info, instrument, Level};
+use tracing_loki::layer::LokiLayer;
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 #[derive(Debug, Deserialize)]
 struct PermissionEntry {
@@ -38,7 +41,7 @@ struct Claims {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
-#[sqlx(type_name = "role", rename_all = "PascalCase")] // Matches DB type name
+#[sqlx(type_name = "role", rename_all = "PascalCase")]
 enum Role {
     ProjectOwner,
     Member,
@@ -61,7 +64,6 @@ struct ProjectRole {
     role: Role,
 }
 
-// Implement Display to allow Role to be printed as a string
 impl fmt::Display for Role {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -74,31 +76,20 @@ impl fmt::Display for Role {
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
-    println!("🚀 Starting gateway initialization...");
+    init_tracing().await;
 
-    let config_files_str =
-        std::env::var("CONFIG_FILES").unwrap_or_else(|_| "gateway-config.toml".into());
+    info!("🚀 Starting gateway initialization...");
 
-    // 1. Configure multi-source configuration
-    let config_files = config_files_str
-        .split(',')
-        .map(|s| s.trim())
-        .collect::<Vec<_>>();
+    let config_files_str = std::env::var("CONFIG_FILES").unwrap_or_else(|_| "gateway-config.toml".into());
+    let config_files = config_files_str.split(',').map(|s| s.trim()).collect::<Vec<_>>();
 
-    println!("🔧 Loading configuration files: {:?}", config_files);
+    info!("🔧 Loading configuration files: {:?}", config_files);
 
-    // 2. Build base configuration with environment overrides
     let config = Config::builder()
-        .add_source(
-            config_files
-                .iter()
-                .map(|f| File::with_name(f))
-                .collect::<Vec<_>>(),
-        )
+        .add_source(config_files.iter().map(|f| File::with_name(f)).collect::<Vec<_>>())
         .build()
         .expect("Failed to build configuration");
 
-    // 3. Load and merge permissions from all config files
     let mut permissions = Vec::new();
     for file in &config_files {
         let cfg = Config::builder()
@@ -107,14 +98,13 @@ async fn main() {
             .unwrap_or_else(|_| panic!("Failed to load config file: {}", file));
 
         if let Ok(mut perms) = cfg.get::<Vec<PermissionEntry>>("permissions") {
-            println!("📄 Loaded {} permissions from {}", perms.len(), file);
+            info!("📄 Loaded {} permissions from {}", perms.len(), file);
             permissions.append(&mut perms);
         }
     }
 
-    println!("🔐 Total merged permissions: {}", permissions.len());
+    info!("🔐 Total merged permissions: {}", permissions.len());
 
-    // 4. Initialize core components
     let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let backend_url = config.get_string("backend_url").unwrap();
@@ -125,15 +115,12 @@ async fn main() {
         .await
         .expect("Failed to create database pool");
 
-    // 5. Build route permissions map
     let mut router = MatchRouter::new();
-
-    // Changed: Process permissions directly into the router
     let mut permissions_map = HashMap::new();
 
     for entry in &permissions {
         let method = entry.method.parse::<Method>().unwrap();
-        let path = entry.path.clone(); // Keep original path format "/api/v2/tasks/:id"
+        let path = entry.path.clone();
 
         let path_perms = permissions_map
             .entry(path.clone())
@@ -150,27 +137,24 @@ async fn main() {
         );
     }
 
-    // Log all registered routes
-    println!("🛣️ Registered Routes:");
+    info!("🛣️ Registered Routes:");
     for (path, perms) in &permissions_map {
-        println!("- Path: {}", path);
+        info!(route.path = %path, "Route registered");
         for (method, (roles, param)) in &perms.methods {
-            println!(
-                "  ▸ Method: {} | Roles: {:?} | Param: {:?}",
-                method, roles, param
+            debug!(
+                method = %method,
+                allowed_roles = ?roles,
+                param = ?param,
+                "Route details"
             );
         }
     }
 
-    // Changed: Take ownership of the permissions_map entries
     for (path, perms) in permissions_map {
-        // Removed & here
-        router
-            .insert(&path, perms)
+        router.insert(&path, perms)
             .unwrap_or_else(|_| panic!("Failed to register route: {}", path));
     }
 
-    // 8. Prepare shared state
     let shared_router = Arc::new(Mutex::new(router));
     let app_state = Arc::new(AppState {
         db_pool,
@@ -178,7 +162,6 @@ async fn main() {
         backend_url,
     });
 
-    // 9. Configure Axum server
     let app = Router::new()
         .route("/*path", any(proxy_handler))
         .layer(Extension(shared_router))
@@ -186,8 +169,8 @@ async fn main() {
 
     let bind_address = std::env::var("BIND_ADDRESS").unwrap_or_else(|_| "0.0.0.0:8000".into());
 
-    println!("\n🚀 Gateway initialized successfully");
-    println!("🌐 Listening on: http://{}", bind_address);
+    info!("\n🚀 Gateway initialized successfully");
+    info!("🌐 Listening on: http://{}", bind_address);
 
     axum::Server::bind(&bind_address.parse().unwrap())
         .serve(app.into_make_service())
@@ -195,7 +178,39 @@ async fn main() {
         .unwrap();
 }
 
-#[axum::debug_handler]
+async fn init_tracing() {
+    let loki_url = std::env::var("LOKI_URL")
+        .unwrap_or_else(|_| "http://loki:3100/loki/api/v1/push".into());
+    
+    let (loki_layer, task) = tracing_loki::layer(
+        loki_url,
+        vec![("service".into(), "gateway".into())],
+        vec![],
+    ).unwrap();
+
+    tracing_subscriber::registry()
+        .with(EnvFilter::from_default_env()
+            .add_directive("gateway=info".parse().unwrap())
+            .add_directive("hyper=info".parse().unwrap())
+            .add_directive("tower=info".parse().unwrap()))
+        .with(fmt::Layer::new().json())
+        .with(loki_layer)
+        .init();
+
+    tokio::spawn(task);
+}
+
+#[instrument(
+    skip_all,
+    fields(
+        method = %method,
+        uri = %uri,
+        user_id,
+        status,
+        params,
+        query
+    )
+)]
 async fn proxy_handler(
     method: Method,
     uri: Uri,
@@ -204,66 +219,66 @@ async fn proxy_handler(
     Extension(router): Extension<Arc<Mutex<MatchRouter<PathPermissions>>>>,
     Extension(app_state): Extension<Arc<AppState>>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    // Extract query parameters
     let query_params: HashMap<String, String> = uri
         .query()
         .map(|q| serde_urlencoded::from_str(q).unwrap_or_default())
         .unwrap_or_default();
 
-    // Auth handling
+    tracing::Span::current().record("query", &tracing::field::debug(&query_params));
+
     let token = headers
         .get("Authorization")
         .and_then(|h| h.to_str().ok())
         .and_then(|s| s.strip_prefix("Bearer "))
-        .ok_or(StatusCode::UNAUTHORIZED)?;
+        .ok_or_else(|| {
+            error!("Missing or invalid Authorization header");
+            StatusCode::UNAUTHORIZED
+        })?;
 
-    let user_id = decode_jwt(token, &app_state.jwt_secret).map_err(|_| StatusCode::UNAUTHORIZED)?;
+    let user_id = decode_jwt(token, &app_state.jwt_secret)
+        .map_err(|e| {
+            error!(error = %e, "JWT validation failed");
+            StatusCode::UNAUTHORIZED
+        })?;
 
-    // Path matching
+    tracing::Span::current().record("user_id", &user_id);
+
     let path = uri.path();
     let router = router.lock().await;
 
-    println!("\n🔍 Incoming Request: {} {}", method, path);
+    debug!("Incoming request: {} {}", method, path);
     let matched = router.at(path).map_err(|_| {
-        println!("❌ No route matched for path: {}", path);
+        error!("No route matched for path: {}", path);
         StatusCode::NOT_FOUND
     })?;
 
-    println!("✅ Matched Route: {:?}", matched.value.methods);
-    println!("📦 Route Params: {:?}", matched.params);
-    println!("🔍 Query Params: {:?}", query_params);
-
-    // Method validation
     let (allowed_roles, param) = matched.value.methods.get(&method).ok_or_else(|| {
-        println!("⚠️ Method not allowed: {}", method);
+        error!("Method not allowed: {}", method);
         StatusCode::METHOD_NOT_ALLOWED
     })?;
 
-    // Extract project/task ID from query instead of path
     let param_name = param.as_ref().map(|p| p.as_str()).unwrap_or_default();
-    let id = matched.params.get(param_name); // Use param_name instead of param
+    let id = matched.params.get(param_name);
 
-    // Role checking
     let user_roles = fetch_user_roles(&app_state.db_pool, &user_id, id)
         .await
         .map_err(|e| {
-            println!("💥 Database error: {:?}", e);
+            error!(error = %e, "Database error");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    println!("👤 User Roles: {:?}", user_roles);
+    debug!("User roles: {:?}", user_roles);
     let is_admin = user_roles.contains(&"admin".to_string());
 
     if !is_admin {
         if allowed_roles.contains(&"*".to_string()) {
-            println!("✅ Wildcard role found - allowing access");
+            debug!("Wildcard role found - allowing access");
         } else if !allowed_roles.iter().any(|role| user_roles.contains(role)) {
-            println!("⛔ Access denied. Required roles: {:?}", allowed_roles);
+            error!("Access denied. Required roles: {:?}", allowed_roles);
             return Err(StatusCode::FORBIDDEN);
         }
     }
 
-    // Proxy request
     let client = reqwest::Client::new();
     let backend_url = format!("{}{}", app_state.backend_url, uri);
 
@@ -274,7 +289,7 @@ async fn proxy_handler(
         .send()
         .await
         .map_err(|e| {
-            println!("🔌 Backend connection error: {:?}", e);
+            error!(error = %e, "Backend connection error");
             StatusCode::BAD_GATEWAY
         })?;
 
@@ -282,27 +297,33 @@ async fn proxy_handler(
     let headers = response.headers().clone();
     let bytes = response.bytes().await.unwrap();
 
+    tracing::Span::current().record("status", &status.as_u16());
+
     Ok((status, headers, bytes))
 }
 
-fn decode_jwt(token: &str, secret: &str) -> Result<String, ()> {
+fn decode_jwt(token: &str, secret: &str) -> Result<String, JwtError> {
     let decoding_key = DecodingKey::from_secret(secret.as_bytes());
     let validation = Validation::new(Algorithm::HS256);
 
     decode::<Claims>(token, &decoding_key, &validation)
         .map(|token_data| {
-            println!(
-                "🔑 Successfully decoded JWT for user: {}",
-                token_data.claims.id
-            );
+            info!(user_id = %token_data.claims.id, "JWT decoded successfully");
             token_data.claims.id
         })
         .map_err(|e| {
-            println!("🔒 JWT decode error: {:?}", e);
-            ()
+            error!(error = %e, "JWT decode failed");
+            e
         })
 }
 
+#[instrument(
+    skip_all,
+    fields(
+        user_id = %user_id,
+        resource_id = ?id
+    )
+)]
 async fn fetch_user_roles(
     pool: &PgPool,
     user_id: &str,
@@ -310,7 +331,6 @@ async fn fetch_user_roles(
 ) -> Result<Vec<String>, sqlx::Error> {
     let mut roles = Vec::new();
 
-    // Check admin status
     let user: Option<UserRole> = sqlx::query_as("SELECT admin FROM users WHERE id = $1")
         .bind(user_id)
         .fetch_optional(pool)
@@ -318,12 +338,11 @@ async fn fetch_user_roles(
 
     if let Some(user) = user {
         if user.admin {
-            println!("🌟 User is admin");
+            debug!("User is admin");
             roles.push("admin".to_string());
         }
     }
 
-    // Find Task Creator
     if let Some(task_id) = id {
         let project_ids: Vec<(String, String)> =
             sqlx::query_as(r#"SELECT "id", "projectId" FROM tasks WHERE "id" = $1"#)
@@ -332,7 +351,7 @@ async fn fetch_user_roles(
                 .await?;
 
         for project_id in project_ids {
-            println!("🔍 Fetching roles for project: {}", project_id.1);
+            debug!("Fetching roles for project: {}", project_id.1);
             let project_roles: Vec<ProjectRole> = sqlx::query_as(
                 r#"SELECT role FROM project_roles WHERE "userId" = $1 AND "projectId" = $2"#,
             )
@@ -342,15 +361,14 @@ async fn fetch_user_roles(
             .await?;
 
             for role in project_roles {
-                println!("🏗️ Found project role: {}", role.role);
+                debug!("Found project role: {}", role.role);
                 roles.push(role.role.to_string());
             }
         }
     }
 
-    // Check project roles
     if let Some(project_id) = id {
-        println!("🔍 Fetching roles for project: {}", project_id);
+        debug!("Fetching roles for project: {}", project_id);
         let project_roles: Vec<ProjectRole> = sqlx::query_as(
             r#"SELECT role FROM project_roles WHERE "userId" = $1 AND "projectId" = $2"#,
         )
@@ -360,12 +378,11 @@ async fn fetch_user_roles(
         .await?;
 
         for role in project_roles {
-            println!("🏗️ Found project role: {}", role.role);
+            debug!("Found project role: {}", role.role);
             roles.push(role.role.to_string());
         }
     }
 
-    // Find Task Creator
     if let Some(task_id) = id {
         let creators: Vec<(String, String)> =
             sqlx::query_as(r#"SELECT "id", "createdById" FROM tasks WHERE "id" = $1"#)
@@ -374,14 +391,13 @@ async fn fetch_user_roles(
                 .await?;
 
         for creator in creators {
-            println!("🏗️ Found task creator: {}", creator.1);
             if creator.1 == user_id {
+                debug!("User is task creator");
                 roles.push("TaskCreator".to_string());
             }
         }
     }
 
-    // Find Task Assignee
     if let Some(task_id) = id {
         let assigners: Vec<(String, String)> = sqlx::query_as(
             r#"SELECT "taskId","userId" FROM task_assignments WHERE "taskId" = $1 AND "userId" = $2"#,
@@ -392,11 +408,12 @@ async fn fetch_user_roles(
         .await?;
 
         for assignee in assigners {
-            println!("🏗️ Found task creator: {}", assignee.1);
             if assignee.1 == user_id {
+                debug!("User is task assignee");
                 roles.push("TaskAssignee".to_string());
             }
         }
     }
+
     Ok(roles)
 }

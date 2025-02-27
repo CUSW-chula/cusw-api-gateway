@@ -20,7 +20,9 @@ futures = "0.3"
 anyhow = "1.0"
 thiserror = "1.0"
 serde_urlencoded = "0.7"
-
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-loki = "0.3"
 
 [build-dependencies]
 sqlx = { version = "0.7", features = ["postgres", "macros"] }
