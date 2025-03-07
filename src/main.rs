@@ -1,77 +1,25 @@
-use axum::{
-    body::Bytes,
-    http::{HeaderMap, Method, StatusCode, Uri},
-    response::IntoResponse,
-    routing::any,
-    Extension, Router,
-};
+use axum::{routing::any, Extension, Router};
 use config::{Config, File};
-use core::fmt;
-use jsonwebtoken::{decode, errors::Error as JwtError, Algorithm, DecodingKey, Validation};
+use configs::{load_config, load_permissions};
+use http::Method;
 use matchit::Router as MatchRouter;
-use reqwest;
-use serde::{Deserialize, Serialize};
-use sqlx::postgres::{PgPool, PgPoolOptions};
-use sqlx::Type;
-use std::collections::HashMap;
-use std::sync::Arc;
+use sqlx::postgres::PgPoolOptions;
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::Mutex;
-use tracing::{debug, error, info, instrument};
-use tracing_loki::url;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing::{debug, info};
 
-#[derive(Debug, Deserialize)]
-struct PermissionEntry {
-    path: String,
-    method: String,
-    #[serde(rename = "allowed_roles", default)]
-    allowed_roles_permission_entry: Vec<String>,
-    #[serde(default)]
-    param: Option<String>,
-}
+mod auth;
+mod configs;
+mod database;
+mod handlers;
+mod logging;
+mod models;
 
-struct PathPermissions {
-    methods: HashMap<Method, (Vec<String>, Option<String>)>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Claims {
-    id: String,
-    exp: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
-#[sqlx(type_name = "role", rename_all = "PascalCase")]
-enum Role {
-    ProjectOwner,
-    Member,
-}
-
-struct AppState {
-    db_pool: PgPool,
-    jwt_secret: String,
-    backend_url: String,
-}
-
-#[derive(sqlx::FromRow)]
-struct UserRole {
-    admin: bool,
-}
-
-#[derive(sqlx::FromRow)]
-struct ProjectRole {
-    #[sqlx(rename = "role")]
-    role: Role,
-}
-
-impl fmt::Display for Role {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Role::ProjectOwner => write!(f, "ProjectOwner"),
-            Role::Member => write!(f, "Member"),
-        }
-    }
-}
+use crate::{
+    handlers::proxy_handler,
+    logging::init_tracing,
+    models::{AppState, PathPermissions, PermissionEntry},
+};
 
 #[tokio::main]
 async fn main() {
@@ -80,26 +28,19 @@ async fn main() {
 
     info!("🚀 Starting gateway initialization...");
 
-    let config_files_str =
-        std::env::var("CONFIG_FILES").unwrap_or_else(|_| "gateway-config.toml".into());
-    let config_files = config_files_str
+    // Load configuration files
+    let config_files = std::env::var("CONFIG_FILES")
+        .unwrap_or_else(|_| "gateway-config.toml".into())
         .split(',')
-        .map(|s| s.trim())
+        .map(|s| s.trim().to_string())
         .collect::<Vec<_>>();
 
     info!("🔧 Loading configuration files: {:?}", config_files);
 
-    let config = Config::builder()
-        .add_source(
-            config_files
-                .iter()
-                .map(|f| File::with_name(f))
-                .collect::<Vec<_>>(),
-        )
-        .build()
-        .expect("Failed to build configuration");
+    let config = load_config(&config_files).expect("Failed to build configuration");
+    let mut permissions = load_permissions(&config_files).expect("Failed to load permissions");
 
-    let mut permissions = Vec::new();
+    // Load permissions
     for file in &config_files {
         let cfg = Config::builder()
             .add_source(File::with_name(file))
@@ -114,16 +55,19 @@ async fn main() {
 
     info!("🔐 Total merged permissions: {}", permissions.len());
 
+    // Load environment variables
     let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let backend_url = config.get_string("backend_url").unwrap();
 
+    // Database setup
     let db_pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(&database_url)
         .await
         .expect("Failed to create database pool");
 
+    // Build routing
     let mut router = MatchRouter::new();
     let mut permissions_map = HashMap::new();
 
@@ -137,16 +81,12 @@ async fn main() {
                 methods: HashMap::new(),
             });
 
-        path_perms.methods.insert(
-            method,
-            (
-                entry.allowed_roles_permission_entry.clone(),
-                entry.param.clone(),
-            ),
-        );
+        path_perms
+            .methods
+            .insert(method, (entry.allowed_roles.clone(), entry.param.clone()));
     }
 
-    info!("🛣️ Registered Routes:");
+    // Register routes
     for (path, perms) in &permissions_map {
         info!(route.path = %path, "Route registered");
         for (method, (roles, param)) in &perms.methods {
@@ -172,6 +112,7 @@ async fn main() {
         backend_url,
     });
 
+    // Create Axum app
     let app = Router::new()
         .route("/*path", any(proxy_handler))
         .layer(Extension(shared_router))
@@ -182,291 +123,9 @@ async fn main() {
     info!("\n🚀 Gateway initialized successfully");
     info!("🌐 Listening on: http://{}", bind_address);
 
+    // Start server with ConnectInfo for IP tracking
     axum::Server::bind(&bind_address.parse().unwrap())
-        .serve(app.into_make_service())
+        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
         .unwrap();
-}
-
-async fn init_tracing() {
-    let loki_url = "http://loki:3100/loki/api/v1/push"
-        .parse::<url::Url>()
-        .expect("Invalid Loki URL");
-
-    let mut labels: HashMap<String, String> = HashMap::new();
-    labels.insert("service".to_string(), "gateway".to_string()); // Ensure both are Strings
-
-    let (loki_layer, task) =
-        tracing_loki::layer(loki_url, labels, HashMap::<String, String>::new())
-            .expect("Failed to initialize Loki logging");
-
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer().json()) // JSON logs
-        .with(tracing_subscriber::EnvFilter::new("info")) // Log level
-        .with(loki_layer)
-        .init();
-
-    tokio::spawn(task);
-}
-
-#[instrument(
-    skip_all,
-    fields(
-        method = %method,
-        uri = %uri,
-        user_id,
-        status,
-        params,
-        query,
-        matched_route,
-        required_roles,
-        user_roles,
-        is_admin
-    )
-)]
-async fn proxy_handler(
-    method: Method,
-    uri: Uri,
-    headers: HeaderMap,
-    body: Bytes,
-    Extension(router): Extension<Arc<Mutex<MatchRouter<PathPermissions>>>>,
-    Extension(app_state): Extension<Arc<AppState>>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let query_params: HashMap<String, String> = uri
-        .query()
-        .map(|q| serde_urlencoded::from_str(q).unwrap_or_default())
-        .unwrap_or_default();
-
-    tracing::Span::current().record("query", &tracing::field::debug(&query_params));
-
-    let token = headers
-        .get("Authorization")
-        .and_then(|h| h.to_str().ok())
-        .and_then(|s| s.strip_prefix("Bearer "))
-        .ok_or_else(|| {
-            error!("Missing or invalid Authorization header");
-            StatusCode::UNAUTHORIZED
-        })?;
-
-    let user_id = decode_jwt(token, &app_state.jwt_secret).map_err(|e| {
-        error!(error = %e, "JWT validation failed");
-        StatusCode::UNAUTHORIZED
-    })?;
-
-    tracing::Span::current().record("user_id", &user_id);
-
-    let path = uri.path();
-    let router = router.lock().await;
-
-    debug!("Incoming request: {} {}", method, path);
-    let matched = router.at(path).map_err(|_| {
-        error!("No route matched for path: {}", path);
-        StatusCode::NOT_FOUND
-    })?;
-
-    let (allowed_roles, param) = matched.value.methods.get(&method).ok_or_else(|| {
-        error!("Method not allowed: {}", method);
-        StatusCode::METHOD_NOT_ALLOWED
-    })?;
-
-    tracing::Span::current()
-        .record("matched_route", &format!("{:?}", matched.value.methods))
-        .record("required_roles", &format!("{:?}", allowed_roles));
-
-    let param_name = param.as_ref().map(|p| p.as_str()).unwrap_or_default();
-    let id = matched.params.get(param_name);
-
-    let user_roles = fetch_user_roles(&app_state.db_pool, &user_id, id)
-        .await
-        .map_err(|e| {
-            error!(error = %e, "Database error");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
-    let is_admin = user_roles.contains(&"admin".to_string());
-    tracing::Span::current()
-        .record("user_roles", &format!("{:?}", user_roles))
-        .record("is_admin", &is_admin);
-
-    info!(
-        user_roles = ?user_roles,
-        required_roles = ?allowed_roles,
-        "Checking authorization"
-    );
-
-    if !is_admin {
-        if allowed_roles.contains(&"*".to_string()) {
-            info!("Wildcard access granted for route");
-        } else {
-            let has_required_role = allowed_roles.iter().any(|role| user_roles.contains(role));
-            if !has_required_role {
-                error!(
-                    "Access denied. User roles: {:?}, Required roles: {:?}",
-                    user_roles, allowed_roles
-                );
-                return Err(StatusCode::FORBIDDEN);
-            }
-            info!(
-                "Access granted with roles: {:?}",
-                user_roles
-                    .iter()
-                    .filter(|r| allowed_roles.contains(r))
-                    .collect::<Vec<_>>()
-            );
-        }
-    } else {
-        info!("Admin access granted");
-    }
-
-    let client = reqwest::Client::new();
-    let backend_url = format!("{}{}", app_state.backend_url, uri);
-    info!(backend_url = %backend_url, "Forwarding request");
-
-    let response = client
-        .request(method.as_str().parse().unwrap(), &backend_url)
-        .headers(headers.clone())
-        .body(body)
-        .send()
-        .await
-        .map_err(|e| {
-            error!(error = %e, "Backend connection error");
-            StatusCode::BAD_GATEWAY
-        })?;
-
-    let status = StatusCode::from_u16(response.status().as_u16()).unwrap();
-    let headers = response.headers().clone();
-    let bytes = response.bytes().await.unwrap();
-
-    tracing::Span::current().record("status", &status.as_u16());
-
-    info!(
-        status = %status,
-        content_length = bytes.len(),
-        "Response received"
-    );
-
-    Ok((status, headers, bytes))
-}
-
-#[instrument(
-    skip_all,
-    fields(
-        user_id = %user_id,
-        resource_id = ?id,
-        found_roles
-    )
-)]
-async fn fetch_user_roles(
-    pool: &PgPool,
-    user_id: &str,
-    id: Option<&str>,
-) -> Result<Vec<String>, sqlx::Error> {
-    let mut roles = Vec::new();
-
-    info!("Checking user admin status");
-    let user: Option<UserRole> = sqlx::query_as("SELECT admin FROM users WHERE id = $1")
-        .bind(user_id)
-        .fetch_optional(pool)
-        .await?;
-
-    if let Some(user) = user {
-        if user.admin {
-            info!("Admin role found");
-            roles.push("admin".to_string());
-        }
-    }
-
-    if let Some(task_id) = id {
-        info!(%task_id, "Checking task-related roles");
-        let project_ids: Vec<(String, String)> =
-            sqlx::query_as(r#"SELECT "id", "projectId" FROM tasks WHERE "id" = $1"#)
-                .bind(task_id)
-                .fetch_all(pool)
-                .await?;
-
-        for project_id in project_ids {
-            info!(project_id = %project_id.1, "Checking project roles");
-            let project_roles: Vec<ProjectRole> = sqlx::query_as(
-                r#"SELECT role FROM project_roles WHERE "userId" = $1 AND "projectId" = $2"#,
-            )
-            .bind(user_id)
-            .bind(project_id.1)
-            .fetch_all(pool)
-            .await?;
-
-            for role in project_roles {
-                info!(role = %role.role, "Found project role");
-                roles.push(role.role.to_string());
-            }
-        }
-    }
-
-    if let Some(project_id) = id {
-        info!(%project_id, "Checking direct project roles");
-        let project_roles: Vec<ProjectRole> = sqlx::query_as(
-            r#"SELECT role FROM project_roles WHERE "userId" = $1 AND "projectId" = $2"#,
-        )
-        .bind(user_id)
-        .bind(project_id)
-        .fetch_all(pool)
-        .await?;
-
-        for role in project_roles {
-            info!(role = %role.role, "Found direct project role");
-            roles.push(role.role.to_string());
-        }
-    }
-
-    if let Some(task_id) = id {
-        info!(%task_id, "Checking task creator role");
-        let creators: Vec<(String, String)> =
-            sqlx::query_as(r#"SELECT "id", "createdById" FROM tasks WHERE "id" = $1"#)
-                .bind(task_id)
-                .fetch_all(pool)
-                .await?;
-
-        for creator in creators {
-            if creator.1 == user_id {
-                info!("Task creator role found");
-                roles.push("TaskCreator".to_string());
-            }
-        }
-    }
-
-    if let Some(task_id) = id {
-        info!(%task_id, "Checking task assignee role");
-        let assigners: Vec<(String, String)> = sqlx::query_as(
-            r#"SELECT "taskId","userId" FROM task_assignments WHERE "taskId" = $1 AND "userId" = $2"#,
-        )
-        .bind(task_id)
-        .bind(user_id)
-        .fetch_all(pool)
-        .await?;
-
-        for assignee in assigners {
-            if assignee.1 == user_id {
-                info!("Task assignee role found");
-                roles.push("TaskAssignee".to_string());
-            }
-        }
-    }
-
-    tracing::Span::current().record("found_roles", &format!("{:?}", roles));
-    info!(total_roles = roles.len(), "Completed role collection");
-    Ok(roles)
-}
-
-fn decode_jwt(token: &str, secret: &str) -> Result<String, JwtError> {
-    let decoding_key = DecodingKey::from_secret(secret.as_bytes());
-    let validation = Validation::new(Algorithm::HS256);
-
-    decode::<Claims>(token, &decoding_key, &validation)
-        .map(|token_data| {
-            info!(user_id = %token_data.claims.id, "JWT decoded successfully");
-            token_data.claims.id
-        })
-        .map_err(|e| {
-            error!(error = %e, "JWT decode failed");
-            e
-        })
 }
