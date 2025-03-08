@@ -40,19 +40,6 @@ async fn main() {
     let config = load_config(&config_files).expect("Failed to build configuration");
     let mut permissions = load_permissions(&config_files).expect("Failed to load permissions");
 
-    // Load permissions
-    for file in &config_files {
-        let cfg = Config::builder()
-            .add_source(File::with_name(file))
-            .build()
-            .unwrap_or_else(|_| panic!("Failed to load config file: {}", file));
-
-        if let Ok(mut perms) = cfg.get::<Vec<PermissionEntry>>("permissions") {
-            info!("📄 Loaded {} permissions from {}", perms.len(), file);
-            permissions.append(&mut perms);
-        }
-    }
-
     info!("🔐 Total merged permissions: {}", permissions.len());
 
     // Load environment variables
