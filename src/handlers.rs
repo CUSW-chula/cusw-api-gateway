@@ -5,6 +5,7 @@ use axum::{
     response::IntoResponse,
     Extension,
 };
+use futures::{stream::StreamExt, Stream};
 use matchit::Router as MatchRouter;
 use reqwest;
 use std::net::SocketAddr;
@@ -141,15 +142,22 @@ pub async fn proxy_handler(
 
     let status = StatusCode::from_u16(response.status().as_u16()).unwrap();
     let headers = response.headers().clone();
-    let bytes = response.bytes().await.unwrap();
+
+    let stream = response
+        .bytes_stream()
+        .map(|chunk| chunk.map_err(|e| axum::Error::new(e)));
 
     tracing::Span::current().record("status", &status.as_u16());
 
     info!(
         status = %status,
-        content_length = bytes.len(),
+        content_length = stream.size_hint().0,
         "Response received"
     );
 
-    Ok((status, headers, bytes))
+    Ok((
+        status,
+        headers,
+        axum::body::boxed(axum::body::StreamBody::new(stream)),
+    ))
 }

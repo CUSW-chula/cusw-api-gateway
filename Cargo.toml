@@ -9,11 +9,12 @@ tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 config = "0.13"
 jsonwebtoken = "9.0"
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["json", "stream"] }
 matchit = "0.7"
 sqlx = { version = "0.7", features = ["postgres", "runtime-tokio", "macros"] }
 http = "0.2"
 tower = "0.4"
+moka = "0.10"
 tower-http = "0.4"
 dotenv = "0.15"
 futures = "0.3"
