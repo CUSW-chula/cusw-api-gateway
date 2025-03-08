@@ -124,11 +124,7 @@ pub async fn proxy_handler(
         info!("Admin access granted");
     }
 
-    let client = reqwest::Client::builder()
-        .http2_prior_knowledge()
-        .connection_verbose(true)
-        .build()
-        .unwrap();
+    let client = reqwest::Client::new();
     let backend_url = format!("{}{}", app_state.backend_url, uri);
     info!(backend_url = %backend_url, "Forwarding request");
 
