@@ -1,5 +1,4 @@
 use axum::{routing::any, Extension, Router};
-use config::{Config, File};
 use configs::{load_config, load_permissions};
 use http::Method;
 use matchit::Router as MatchRouter;
@@ -18,7 +17,7 @@ mod models;
 use crate::{
     handlers::proxy_handler,
     logging::init_tracing,
-    models::{AppState, PathPermissions, PermissionEntry},
+    models::{AppState, PathPermissions},
 };
 
 #[tokio::main]
@@ -38,7 +37,7 @@ async fn main() {
     info!("🔧 Loading configuration files: {:?}", config_files);
 
     let config = load_config(&config_files).expect("Failed to build configuration");
-    let mut permissions = load_permissions(&config_files).expect("Failed to load permissions");
+    let permissions = load_permissions(&config_files).expect("Failed to load permissions");
 
     info!("🔐 Total merged permissions: {}", permissions.len());
 
