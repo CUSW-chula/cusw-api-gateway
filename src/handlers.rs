@@ -7,7 +7,7 @@ use axum::{
 };
 use futures::{stream::StreamExt, Stream};
 use matchit::Router as MatchRouter;
-use reqwest;
+use reqwest::{self, Client};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -125,7 +125,18 @@ pub async fn proxy_handler(
         info!("Admin access granted");
     }
 
-    let client = reqwest::Client::new();
+    // 6. Optimized HTTP Client with Streaming
+    static REQWEST_CLIENT: tokio::sync::OnceCell<Client> = tokio::sync::OnceCell::const_new();
+    let client = REQWEST_CLIENT
+        .get_or_init(|| async {
+            Client::builder()
+                .http2_prior_knowledge()
+                .pool_max_idle_per_host(20)
+                .build()
+                .unwrap()
+        })
+        .await;
+
     let backend_url = format!("{}{}", app_state.backend_url, uri);
     info!(backend_url = %backend_url, "Forwarding request");
 
