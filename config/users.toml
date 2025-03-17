@@ -12,6 +12,12 @@ method = "POST"
 allowed_roles = ["admin"]
 
 [[permissions]] #TESTED admin,notadmin
+path = "/api/v2/users/head/:id"
+method = "PATCH"
+allowed_roles = ["admin"]
+param = "id"
+
+[[permissions]] #TESTED admin,notadmin
 path = "/api/v2/users/:id"
 method = "GET"
 allowed_roles = ["*"]
