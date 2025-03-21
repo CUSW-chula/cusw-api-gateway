@@ -30,6 +30,12 @@ method = "PATCH"
 allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
 param = "id"
 
+[[permissions]] #TESTED pjowner, member, outsider
+path = "/api/v2/tasks/user/:id"
+method = "GET"
+allowed_roles = ["*"]
+param = "id"
+
 [[permissions]] #IS IT USED?
 path = "/api/v2/tasks/project/:projectid"
 method = "GET"
