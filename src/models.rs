@@ -25,7 +25,7 @@ pub struct Claims {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
-#[sqlx(type_name = "role", rename_all = "PascalCase")]
+#[sqlx(type_name = "Role", rename_all = "PascalCase")]
 pub enum Role {
     ProjectOwner,
     Member,
@@ -48,7 +48,7 @@ pub struct AppState {
 
 #[derive(sqlx::FromRow)]
 pub struct UserRole {
-    pub admin: bool,
+    pub admin: bool
 }
 
 #[derive(sqlx::FromRow)]
