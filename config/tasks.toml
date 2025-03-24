@@ -13,6 +13,12 @@ allowed_roles = ["ProjectOwner", "Member"]
 param = "id"
 
 [[permissions]] #TESTED pjowner, member, outsider
+path = "/api/v2/tasks/duplicateTask/:id"
+method = "POST"
+allowed_roles = ["ProjectOwner", "Member"]
+param = "id"
+
+[[permissions]] #TESTED pjowner, member, outsider
 path = "/api/v2/tasks/:id"
 method = "GET"
 allowed_roles = ["*"]
