@@ -40,3 +40,8 @@ param = "id"
 path = "/api/v2/template"
 method = "DELETE"
 allowed_roles = ["admin"]
+
+[[permissions]] #TESTED
+path = "/api/v2/template"
+method = "PATCH"
+allowed_roles = ["admin"]
