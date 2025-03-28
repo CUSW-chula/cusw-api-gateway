@@ -24,18 +24,6 @@ allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
 param = "taskId"
 
 [[permissions]] #TESTED
-path = "/api/v2/tags/:taskId"
-method = "PATCH"
-allowed_roles = ["admin"]
-param = "taskId"
-
-[[permissions]] #TESTED
-path = "/api/v2/tags/:taskId"
-method = "DELETE"
-allowed_roles = ["admin"]
-param = "taskId"
-
-[[permissions]] #TESTED
 path = "/api/v2/tags/getassigntask/:tagId"
 method = "GET"
 allowed_roles = ["*"]
