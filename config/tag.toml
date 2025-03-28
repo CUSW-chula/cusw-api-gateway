@@ -7,6 +7,17 @@ method = "GET"
 allowed_roles = ["*"]
 
 [[permissions]] #TESTED 
+path = "/api/v2/tags/:tagId"
+method = "DELETE"
+allowed_roles = ["admin"]
+param = "tagId"
+
+[[permissions]] #TESTED 
+path = "/api/v2/tags"
+method = "PATCH"
+allowed_roles = ["admin"]
+
+[[permissions]] #TESTED 
 path = "/api/v2/tags"
 method = "POST"
 allowed_roles = ["admin"]
