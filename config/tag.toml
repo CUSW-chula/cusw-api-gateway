@@ -13,9 +13,10 @@ allowed_roles = ["admin"]
 param = "tagId"
 
 [[permissions]] #TESTED 
-path = "/api/v2/tags"
+path = "/api/v2/tags/:tagId"
 method = "PATCH"
 allowed_roles = ["admin"]
+param = "tagId"
 
 [[permissions]] #TESTED 
 path = "/api/v2/tags"
