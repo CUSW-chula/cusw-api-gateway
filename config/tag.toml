@@ -51,4 +51,4 @@ param = "taskId"
 path = "/api/v2/tags/unassigned/:taskId"
 method = "DELETE"
 allowed_roles = ["ProjectOwner", "TaskCreator"]
-param = "tagId"
+param = "taskId"
