@@ -95,7 +95,7 @@ param = "taskId"
 [[permissions]] #TESTED pjowner, admin, outsider, taskassignee
 path = "/api/v2/tasks/emoji/:taskId"
 method = "GET"
-allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+allowed_roles = ["*"]
 param = "taskId"
 
 [[permissions]] #TESTED pjowner, admin, outsider, taskassignee

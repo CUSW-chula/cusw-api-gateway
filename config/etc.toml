@@ -22,7 +22,7 @@ param = "id"
 [[permissions]] #TESTED pjowner, member, taskcreator, taskassignee, admin, outsider
 path = "/api/v2/activities/:id"
 method = "GET"
-allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee", "admin"]
+allowed_roles = ["*"]
 param = "id"
 
 [[permissions]] #TESTED

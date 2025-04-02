@@ -4,7 +4,7 @@ backend_url = "http://prod-app:4000"
 [[permissions]] #TESTED pjowner, member, taskcreator, taskassignee, admin, outsider
 path = "/api/v2/comments/:id"
 method = "GET"
-allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+allowed_roles = ["*"]
 param = "id"
 
 [[permissions]] #TESTED

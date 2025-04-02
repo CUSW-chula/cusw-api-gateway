@@ -32,7 +32,7 @@ param = "id"
 [[permissions]] #TESTED
 path = "/api/v2/tags/getassigntag/:taskId"
 method = "GET"
-allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee"]
+allowed_roles = ["*"]
 param = "taskId"
 
 [[permissions]] #TESTED
