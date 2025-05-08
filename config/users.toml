@@ -2,12 +2,12 @@ backend_url = "http://prod-app:4000"
 #[ProjectOwner,Member,TaskCreator,TaskAssignee,admin]
 
 [[permissions]] #TESTED admin,notadmin
-path = "/api/v2/users"
+path = "/api/v2/users/"
 method = "GET"
 allowed_roles = ["*"]
 
 [[permissions]] #TESTED admin,notadmin
-path = "/api/v2/users"
+path = "/api/v2/users/"
 method = "POST"
 allowed_roles = ["admin"]
 

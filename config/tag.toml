@@ -2,7 +2,7 @@ backend_url = "http://prod-app:4000"
 #[ProjectOwner,Member,TaskCreator,TaskAssignee,admin]
 
 [[permissions]] #TESTED 
-path = "/api/v2/tags"
+path = "/api/v2/tags/"
 method = "GET"
 allowed_roles = ["*"]
 
@@ -19,7 +19,7 @@ allowed_roles = ["admin"]
 param = "id"
 
 [[permissions]] #TESTED 
-path = "/api/v2/tags"
+path = "/api/v2/tags/"
 method = "POST"
 allowed_roles = ["admin"]
 
