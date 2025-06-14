@@ -46,3 +46,9 @@ path = "/api/v2/users/project/:id"
 method = "GET"
 allowed_roles = ["*"]
 param = "id"
+
+[[permissions]]
+path = "/api/v2/users/:id"
+method = "PATCH"
+allowed_roles = ["admin"]
+param = "id"
