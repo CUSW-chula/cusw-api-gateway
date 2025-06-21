@@ -68,5 +68,10 @@ method = "GET"
 allowed_roles = ["admin"]
 param = "id"
 
+[[permissions]] #TESTED
+path = "/api/v2/dashboard/workload"
+method = "GET"
+allowed_roles = ["admin"]
+
 
 
