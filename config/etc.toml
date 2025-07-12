@@ -49,18 +49,18 @@ allowed_roles = ["admin"]
 [[permissions]] #TESTED
 path = "/api/v2/ganttchart/project"
 method = "GET"
-allowed_roles = ["admin","head"]
+allowed_roles = ["admin"]
 
 [[permissions]] #TESTED
 path = "/api/v2/ganttchart/:id"
 method = "GET"
-allowed_roles = ["admin","head"]
+allowed_roles = ["admin"]
 param = "id"
 
 [[permissions]] #TESTED
 path = "/api/v2/dashboard/project"
 method = "GET"
-allowed_roles = ["admin","head"]
+allowed_roles = ["admin"]
 
 [[permissions]] #TESTED
 path = "/api/v2/dashboard/project/:id"
@@ -71,12 +71,12 @@ param = "id"
 [[permissions]] #TESTED
 path = "/api/v2/dashboard/workload"
 method = "GET"
-allowed_roles = ["admin","head"]
+allowed_roles = ["admin"]
 
 [[permissions]] #TESTED
 path = "/api/v2/dashboard/workload/:id"
 method = "GET"
-allowed_roles = ["admin","head"]
+allowed_roles = ["admin"]
 param = "id"
 
 
