@@ -18,7 +18,7 @@ pub async fn fetch_user_roles(
     let mut roles = Vec::new();
 
     info!("Checking user admin status");
-    let user: Option<UserRole> = sqlx::query_as("SELECT admin FROM users WHERE id = $1")
+    let user: Option<UserRole> = sqlx::query_as("SELECT admin, head FROM users WHERE id = $1")
         .bind(user_id)
         .fetch_optional(pool)
         .await?;
@@ -31,7 +31,7 @@ pub async fn fetch_user_roles(
     }
 
     info!("Checking user head roles");
-    let head_roles: Vec<UserRole> = sqlx::query_as("SELECT head FROM users WHERE id = $1")
+    let head_roles: Vec<UserRole> = sqlx::query_as("SELECT admin, head FROM users WHERE id = $1")
         .bind(user_id)
         .fetch_all(pool)
         .await?;
