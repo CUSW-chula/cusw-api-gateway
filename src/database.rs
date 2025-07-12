@@ -30,6 +30,19 @@ pub async fn fetch_user_roles(
         }
     }
 
+    info!("Checking user head roles");
+    let head_roles: Vec<UserRole> = sqlx::query_as("SELECT head FROM users WHERE id = $1")
+        .bind(user_id)
+        .fetch_all(pool)
+        .await?;
+
+    if let Some(head_role) = head_roles.into_iter().next() {
+        if head_role.head {
+            info!("Head role found");
+            roles.push("head".to_string());
+        }
+    }
+
     if let Some(task_id) = id {
         info!(%task_id, "Checking task-related roles");
         let project_ids: Vec<(String, String)> =
