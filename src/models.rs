@@ -48,7 +48,8 @@ pub struct AppState {
 
 #[derive(sqlx::FromRow)]
 pub struct UserRole {
-    pub admin: bool
+    pub admin: bool,
+    pub head: bool,
 }
 
 #[derive(sqlx::FromRow)]
