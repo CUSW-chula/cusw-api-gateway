@@ -24,6 +24,13 @@ allowed_roles = ["*"]
 param = "id"
 
 [[permissions]] #TESTED admin,notadmin
+path = "/api/v2/users/userrole/:id"
+method = "GET"
+allowed_roles = ["*"]
+param = "id"
+
+
+[[permissions]] #TESTED admin,notadmin
 path = "/api/v2/users/role/:id"
 method = "PATCH"
 allowed_roles = ["admin"]
