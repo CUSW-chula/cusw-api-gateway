@@ -44,11 +44,11 @@ param = "tagId"
 [[permissions]] #TESTED
 path = "/api/v2/tags/assign/:taskId"
 method = "POST"
-allowed_roles = ["ProjectOwner", "TaskCreator"]
+allowed_roles = ["ProjectOwner", "TaskCreator", "head"]
 param = "taskId"
 
 [[permissions]] #TESTED
 path = "/api/v2/tags/unassigned/:taskId"
 method = "DELETE"
-allowed_roles = ["ProjectOwner", "TaskCreator"]
+allowed_roles = ["ProjectOwner", "TaskCreator", "head"]
 param = "taskId"
