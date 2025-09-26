@@ -14,7 +14,8 @@ allowed_roles = ["*"]
 [[permissions]] #TESTED pjowner,pjmember,admin,outsider
 path = "/api/v2/projects/:project_id"
 method = "GET"
-allowed_roles = ["ProjectOwner","Member","head"]
+allowed_roles = ["*"]
+# allowed_roles = ["ProjectOwner","Member","head"]
 param = "project_id"
 
 [[permissions]] #TESTED pjowner,admin,outsider
