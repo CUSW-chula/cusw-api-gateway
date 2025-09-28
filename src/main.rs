@@ -1,4 +1,4 @@
-use axum::{routing::{any, get, delete}, Extension, Router};
+use axum::{routing::any, Extension, Router};
 use configs::{load_config, load_permissions};
 use http::Method;
 use matchit::Router as MatchRouter;
@@ -7,7 +7,7 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::{debug, info};
 
-mod admin;
+
 mod auth;
 mod configs;
 mod database;
@@ -16,7 +16,6 @@ mod logging;
 mod models;
 
 use crate::{
-    admin::{clear_cache_handler, get_cache_stats_handler},
     database::create_role_cache,
     handlers::proxy_handler,
     logging::init_tracing,
@@ -105,8 +104,6 @@ async fn main() {
 
     // Create Axum app
     let app = Router::new()
-        .route("/admin/cache/stats", get(get_cache_stats_handler))
-        .route("/admin/cache", delete(clear_cache_handler))
         .route("/*path", any(proxy_handler))
         .layer(Extension(shared_router))
         .layer(Extension(app_state));
