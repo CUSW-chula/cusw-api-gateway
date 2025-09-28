@@ -1,8 +1,7 @@
 use axum::http::Method;
 use serde::{Deserialize, Serialize};
-use sqlx::Type;
 use std::collections::HashMap;
-use std::fmt;
+use crate::database::RoleCache;
 
 #[derive(Debug, Deserialize)]
 pub struct PermissionEntry {
@@ -24,26 +23,13 @@ pub struct Claims {
     pub exp: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Type, Serialize, Deserialize)]
-#[sqlx(type_name = "Role", rename_all = "PascalCase")]
-pub enum Role {
-    ProjectOwner,
-    Member,
-}
-
-impl fmt::Display for Role {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Role::ProjectOwner => write!(f, "ProjectOwner"),
-            Role::Member => write!(f, "Member"),
-        }
-    }
-}
+// Removed unused Role enum - now using String directly for flexibility
 
 pub struct AppState {
     pub db_pool: sqlx::PgPool,
     pub jwt_secret: String,
     pub backend_url: String,
+    pub role_cache: RoleCache,
 }
 
 #[derive(sqlx::FromRow)]
@@ -55,5 +41,5 @@ pub struct UserRole {
 #[derive(sqlx::FromRow)]
 pub struct ProjectRole {
     #[sqlx(rename = "role")]
-    pub role: Role,
+    pub role: String,
 }

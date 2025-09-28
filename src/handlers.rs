@@ -83,7 +83,7 @@ pub async fn proxy_handler(
     let param_name = param.as_ref().map(|p| p.as_str()).unwrap_or_default();
     let id = matched.params.get(param_name);
 
-    let user_roles = fetch_user_roles(&app_state.db_pool, &user_id, id)
+    let user_roles = fetch_user_roles(&app_state.db_pool, &app_state.role_cache, &user_id, id)
         .await
         .map_err(|e| {
             error!(error = %e, "Database error");
