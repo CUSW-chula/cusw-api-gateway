@@ -117,6 +117,12 @@ allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee","head"]
 param = "taskId"
 
 [[permissions]] #TESTED pjowner, admin, outsider, taskassignee
+path = "/api/v2/tasks/position/:taskId"
+method = "PATCH"
+allowed_roles = ["*"]
+param = "taskId"
+
+[[permissions]] #TESTED pjowner, admin, outsider, taskassignee
 path = "/api/v2/tasks/money/:taskId"
 method = "DELETE"
 allowed_roles = ["ProjectOwner", "TaskCreator", "TaskAssignee","head"]
